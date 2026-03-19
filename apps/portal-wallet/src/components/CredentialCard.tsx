@@ -88,6 +88,30 @@ export default function CredentialCard({ credential, onClick, extra }: Props) {
             )}
 
             <p className="text-[10px] text-[#9AA0A6] mt-2">Issued by {credential.issuerName as string} &middot; {new Date(credential.issuedAt as string).toLocaleDateString()}</p>
+            <div className="flex flex-col gap-0.5 mt-1">
+              <a
+                href={`http://localhost:8000/api/credentials/${credential.id as string}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="inline-flex items-center gap-1 text-[10px] text-[#4285F4] hover:text-[#3367D6] font-mono"
+              >
+                {`/api/credentials/${(credential.id as string).slice(0, 8)}...`}
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+              </a>
+              {typeof credential.issuerId === 'string' && (credential.issuerId as string).startsWith('http') && (
+                <a
+                  href={credential.issuerId as string}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 text-[10px] text-[#34A853] hover:text-[#2D8F47] font-mono"
+                >
+                  Issuer Legal Participant VC
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import db from '../db';
 import { requireRole } from '../middleware/auth';
 import { issueCredentialSimple } from '../services/waltid';
+import { getVCBaseUrl } from '../services/gaiax/vc-builder';
 
 const router = Router();
 
@@ -24,11 +25,13 @@ router.post('/', requireRole('customer'), async (req, res) => {
   const purchaseDate = new Date().toISOString();
   const ownerName = userInfo?.name || [req.user?.given_name, req.user?.family_name].filter(Boolean).join(' ') || 'Mario Sanchez';
 
-  // Create Ownership VC
+  // Create Ownership VC — issuer links to the seller's resolvable Legal Participant VC
+  const baseUrl = getVCBaseUrl();
+  const issuerCredentialUrl = `${baseUrl}/vc/org-cred-tata-001`;
   const credential = {
     id: credentialId,
     type: 'OwnershipVC',
-    issuerId: 'tata-motors',
+    issuerId: issuerCredentialUrl,
     issuerName: 'TATA Motors',
     subjectId: userId,
     issuedAt: purchaseDate,

@@ -32,9 +32,9 @@ function OrgVerificationBanner() {
 
   useEffect(() => {
     api.get(`${API}/org-credentials`).then(r => {
-      const creds = r.data as { verificationStatus: string }[]
-      const hasVerified = creds.some(c => c.verificationStatus === 'verified')
-      setStatus(hasVerified ? 'verified' : 'unverified')
+      const creds = r.data as { verificationStatus: string; complianceResult?: { status: string; issuedCredential?: unknown } }[]
+      const hasCompliant = creds.some(c => c.verificationStatus === 'verified' && c.complianceResult?.status === 'compliant' && c.complianceResult?.issuedCredential)
+      setStatus(hasCompliant ? 'verified' : 'unverified')
     }).catch(() => setStatus('error'))
   }, [])
 

@@ -20,8 +20,17 @@ interface OrgCred {
 const sts: Record<string, { label: string; bg: string; text: string }> = {
   draft: { label: 'Draft', bg: 'bg-[#F1F3F6]', text: 'text-[#5F6368]' },
   verifying: { label: 'Verifying...', bg: 'bg-[#FEF7E0]', text: 'text-[#F59E0B]' },
-  verified: { label: 'Gaia-X Compliant', bg: 'bg-[#E6F4EA]', text: 'text-[#34A853]' },
+  verified: { label: 'Verified (No Proof)', bg: 'bg-[#FEF7E0]', text: 'text-[#F59E0B]' },
+  compliant: { label: 'Gaia-X Compliant', bg: 'bg-[#E6F4EA]', text: 'text-[#34A853]' },
   failed: { label: 'Verification Failed', bg: 'bg-[#FCE8E6]', text: 'text-[#EA4335]' },
+}
+
+/** Hard check: "Gaia-X Compliant" only with actual compliance proof */
+function getEffectiveStatus(cred: OrgCred): string {
+  if (cred.verificationStatus === 'verified' && cred.complianceResult?.status === 'compliant' && cred.complianceResult?.issuedCredential) {
+    return 'compliant'
+  }
+  return cred.verificationStatus
 }
 
 export default function OrgCredentialDetail() {
@@ -56,7 +65,7 @@ export default function OrgCredentialDetail() {
 
   if (loading || !cred) return <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-[#E5EAF0] border-t-[#4285F4] rounded-full animate-spin" /></div>
 
-  const st = sts[cred.verificationStatus] || sts.draft
+  const st = sts[getEffectiveStatus(cred)] || sts.draft
   const ids = Object.entries(cred.legalRegistrationNumber || {}).filter(([, v]) => v)
 
   return (

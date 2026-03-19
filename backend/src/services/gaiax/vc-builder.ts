@@ -79,7 +79,7 @@ export function buildTermsAndConditionsVC(did: string, orgId: string): Record<st
 export function buildRegistrationNumberVC(
   did: string,
   orgId: string,
-  regNumber: LegalRegistrationNumber,
+  regNumber: { vatId?: string; leiCode?: string; eoriNumber?: string; euid?: string; taxId?: string; localId?: string },
   countryCode: string,
 ): Record<string, unknown> {
   const baseUrl = getVCBaseUrl();

@@ -13,7 +13,7 @@ interface OrgCredential {
   contactEmail: string
   createdAt: string
   updatedAt: string
-  complianceResult?: { status: string; endpointSetUsed: string; complianceLevel?: string }
+  complianceResult?: { status: string; endpointSetUsed: string; complianceLevel?: string; issuedCredential?: Record<string, unknown> }
   verificationAttempts: unknown[]
 }
 
@@ -21,8 +21,17 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; do
   draft: { label: 'Draft', bg: 'bg-[#F1F3F6]', text: 'text-[#5F6368]', dot: 'bg-[#9AA0A6]' },
   submitted: { label: 'Submitted', bg: 'bg-[#E8F0FE]', text: 'text-[#4285F4]', dot: 'bg-[#4285F4]' },
   verifying: { label: 'Verifying', bg: 'bg-[#FEF7E0]', text: 'text-[#F59E0B]', dot: 'bg-[#FBBC05]' },
-  verified: { label: 'Gaia-X Compliant', bg: 'bg-[#E6F4EA]', text: 'text-[#34A853]', dot: 'bg-[#34A853]' },
+  verified: { label: 'Verified (No Proof)', bg: 'bg-[#FEF7E0]', text: 'text-[#F59E0B]', dot: 'bg-[#FBBC05]' },
+  compliant: { label: 'Gaia-X Compliant', bg: 'bg-[#E6F4EA]', text: 'text-[#34A853]', dot: 'bg-[#34A853]' },
   failed: { label: 'Verification Failed', bg: 'bg-[#FCE8E6]', text: 'text-[#EA4335]', dot: 'bg-[#EA4335]' },
+}
+
+/** Hard check: only "Gaia-X Compliant" when compliance proof exists */
+function getEffectiveStatus(cred: OrgCredential): string {
+  if (cred.verificationStatus === 'verified' && cred.complianceResult?.status === 'compliant' && cred.complianceResult?.issuedCredential) {
+    return 'compliant'
+  }
+  return cred.verificationStatus
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -52,8 +61,8 @@ export default function OrgCredentialsList() {
 
   const stats = {
     total: credentials.length,
-    verified: credentials.filter(c => c.verificationStatus === 'verified').length,
-    pending: credentials.filter(c => ['submitted', 'verifying', 'draft'].includes(c.verificationStatus)).length,
+    compliant: credentials.filter(c => getEffectiveStatus(c) === 'compliant').length,
+    pending: credentials.filter(c => ['submitted', 'verifying', 'draft', 'verified'].includes(getEffectiveStatus(c))).length,
     failed: credentials.filter(c => c.verificationStatus === 'failed').length,
   }
 
@@ -81,7 +90,7 @@ export default function OrgCredentialsList() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
           { label: 'Total', value: stats.total },
-          { label: 'Verified', value: stats.verified },
+          { label: 'GX Compliant', value: stats.compliant },
           { label: 'Pending', value: stats.pending },
           { label: 'Failed', value: stats.failed },
         ].map((s, i) => (
@@ -132,7 +141,7 @@ export default function OrgCredentialsList() {
                         ))}
                       </div>
                     </td>
-                    <td className="px-5 py-4"><StatusBadge status={cred.verificationStatus} /></td>
+                    <td className="px-5 py-4"><StatusBadge status={getEffectiveStatus(cred)} /></td>
                     <td className="px-5 py-4 text-xs text-[#9AA0A6]">{new Date(cred.createdAt).toLocaleDateString()}<br/><span className="text-[10px]">{new Date(cred.createdAt).toLocaleTimeString()}</span></td>
                     <td className="px-5 py-4 text-right"><span className="text-[#4285F4] text-xs font-medium">View &rarr;</span></td>
                   </tr>

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import db from '../db';
 import { requireRole } from '../middleware/auth';
 import { issueCredentialSimple } from '../services/waltid';
+import { getVCBaseUrl } from '../services/gaiax/vc-builder';
 
 const router = Router();
 
@@ -31,10 +32,13 @@ router.post('/', requireRole('insurance_agent'), async (req, res) => {
   const startDate = new Date().toISOString();
   const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
 
+  // issuer links to the insurance company's resolvable Legal Participant VC
+  const baseUrl = getVCBaseUrl();
+  const insurerCredentialUrl = `${baseUrl}/vc/org-cred-digit-001`;
   const credential = {
     id: credentialId,
     type: 'InsuranceVC',
-    issuerId: 'digit-insurance',
+    issuerId: insurerCredentialUrl,
     issuerName: 'Digit Insurance',
     subjectId: targetUserId,
     issuedAt: new Date().toISOString(),
