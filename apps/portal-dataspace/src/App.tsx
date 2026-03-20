@@ -6,6 +6,7 @@ import OrgCredentialsList from './pages/OrgCredentialsList'
 import CreateOrgCredential from './pages/CreateOrgCredential'
 import OrgCredentialDetail from './pages/OrgCredentialDetail'
 import GaiaXHealth from './pages/GaiaXHealth'
+import DataExchangeDashboard from './pages/DataExchangeDashboard'
 
 const dataspaceTheme: PortalTheme = {
   portalName: 'EU APAC Dataspace',
@@ -29,6 +30,7 @@ const navLinks = [
   { to: '/', label: 'Credentials' },
   { to: '/create', label: 'Create New' },
   { to: '/register', label: 'Register Org' },
+  { to: '/data-exchange', label: 'Data Exchange' },
   { to: '/gaiax-health', label: 'Gaia-X Status' },
 ]
 
@@ -81,6 +83,7 @@ export default function App() {
           <Route path="/credential/:id" element={<OrgCredentialDetail />} />
           <Route path="/register" element={<CompanyRegistration />} />
           <Route path="/success/:companyId" element={<RegistrationSuccess />} />
+          <Route path="/data-exchange" element={<DataExchangeDashboard />} />
           <Route path="/gaiax-health" element={<GaiaXHealth />} />
         </Routes>
       </ProtectedRoute>

@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import db from '../db';
 import { authenticate } from '../middleware/auth';
 
+const REGISTRY_BASE = process.env.APP_BASE_URL || 'http://localhost:8000';
+
 const router = Router();
 
 // Check if consent already exists (idempotency)
@@ -70,12 +72,38 @@ router.post('/request', authenticate, (req, res) => {
   res.status(201).json(consent);
 });
 
-// Approve consent
+// Approve consent — also creates an access session for the requester
 router.put('/:id/approve', authenticate, (req, res) => {
   const consent = db.get('consent').find({ id: req.params.id });
   if (!consent.value()) return res.status(404).json({ error: 'Consent not found' });
   consent.assign({ status: 'approved', resolvedAt: new Date().toISOString() }).write();
-  res.json(consent.value());
+
+  const c = consent.value();
+
+  // Auto-create an access session so requester can call protected registry endpoints
+  const session = {
+    id: uuidv4(),
+    vin: c.vin,
+    requesterId: c.requesterId,
+    requesterName: c.requesterName,
+    consentId: c.id,
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour
+  };
+  db.get('access_sessions').push(session).write();
+
+  // Audit log
+  db.get('vehicle_audit_log').push({
+    id: uuidv4(),
+    vin: c.vin,
+    action: 'consent_approved_session_created',
+    actor: c.userId,
+    timestamp: new Date().toISOString(),
+    details: { consentId: c.id, sessionId: session.id, requesterId: c.requesterId },
+  }).write();
+
+  res.json({ ...c, accessSession: session });
 });
 
 // Deny consent

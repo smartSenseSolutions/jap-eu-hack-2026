@@ -4,6 +4,7 @@ import { ProtectedRoute, useAuthUser, createAuthAxios, ROLES, PortalTheme } from
 import CarList from './pages/CarList'
 import CarDPP from './pages/CarDPP'
 import CreateCar from './pages/CreateCar'
+import VehicleRegistry from './pages/VehicleRegistry'
 
 const API = 'http://localhost:8000/api'
 
@@ -72,6 +73,12 @@ export default function App() {
             </div>
           </a>
           <div className="flex items-center gap-4">
+            <a href="/" className="text-xs text-[#5F6368] hover:text-[#1F1F1F] font-medium transition-colors">
+              Fleet
+            </a>
+            <a href="/registry" className="text-xs text-[#5F6368] hover:text-[#1F1F1F] font-medium transition-colors">
+              Vehicle Registry
+            </a>
             <a href="/create" className="text-xs text-white bg-[#4285F4] hover:bg-[#3367D6] px-4 py-2 rounded-lg font-medium transition-colors">
               + Create New Car
             </a>
@@ -88,6 +95,7 @@ export default function App() {
           <Route path="/" element={<CarList />} />
           <Route path="/car/:vin" element={<CarDPP />} />
           <Route path="/create" element={<CreateCar />} />
+          <Route path="/registry" element={<VehicleRegistry />} />
         </Routes>
       </ProtectedRoute>
     </div>

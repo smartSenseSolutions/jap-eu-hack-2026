@@ -1,7 +1,152 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuthUser, createAuthAxios } from '@eu-jap-hack/auth'
 import { calculatePremium } from '../lib/premiumCalculator'
+
+interface StepData {
+  step: number
+  totalSteps: number
+  name: string
+  status: 'running' | 'completed' | 'failed'
+  durationMs?: number
+  details?: Record<string, unknown>
+}
+
+const STEP_LABELS = [
+  { name: 'Query Partner Catalog', desc: 'Discovering available assets from TATA Motors connector' },
+  { name: 'Initiate Contract Negotiation', desc: 'Proposing ODRL contract with provider' },
+  { name: 'Wait for Agreement Finalization', desc: 'Awaiting mutual contract agreement via IDSA protocol' },
+  { name: 'Initiate Data Transfer', desc: 'Requesting HttpData-PULL transfer' },
+  { name: 'Get Transfer Process (EDR)', desc: 'Obtaining Endpoint Data Reference from connector' },
+  { name: 'Obtain Authorization Token', desc: 'Retrieving secure data plane access token' },
+  { name: 'Fetch DPP Data from Data Plane', desc: 'Downloading Digital Product Passport via data plane' },
+]
+
+function EdcNegotiationStepper({ steps, error, done, onContinue }: { steps: StepData[]; error: string; done: boolean; onContinue?: () => void }) {
+  return (
+    <div className="max-w-lg mx-auto px-6 py-10">
+      <div className="text-center mb-8">
+        <div className="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <svg className="w-7 h-7 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+        </div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">EDC Data Exchange</h2>
+        <p className="text-xs text-gray-400">Sovereign data negotiation between Digit Insurance &amp; TATA Motors</p>
+      </div>
+
+      {/* Party badges */}
+      <div className="flex items-center justify-center gap-3 mb-8">
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
+          <div className="w-5 h-5 bg-[#FBBC05] rounded-full flex items-center justify-center">
+            <span className="text-white font-bold text-[8px]">D</span>
+          </div>
+          <span className="text-[10px] font-medium text-amber-800">Digit Insurance</span>
+          <span className="text-[9px] text-amber-500">Consumer</span>
+        </div>
+        <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+        <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full">
+          <div className="w-5 h-5 bg-[#1A47A0] rounded-full flex items-center justify-center">
+            <span className="text-white font-bold text-[8px]">T</span>
+          </div>
+          <span className="text-[10px] font-medium text-blue-800">TATA Motors</span>
+          <span className="text-[9px] text-blue-500">Provider</span>
+        </div>
+      </div>
+
+      {/* Steps */}
+      <div className="space-y-1">
+        {STEP_LABELS.map((label, i) => {
+          const stepNum = i + 1
+          const stepData = steps.find(s => s.step === stepNum)
+          const status = stepData?.status || 'pending'
+          const isActive = status === 'running'
+          const isComplete = status === 'completed'
+          const isFailed = status === 'failed'
+
+          return (
+            <div key={stepNum} className={`flex items-start gap-3 p-3 rounded-lg transition-all duration-300 ${isActive ? 'bg-orange-50 border border-orange-200' : isComplete ? 'bg-emerald-50/50' : isFailed ? 'bg-red-50 border border-red-200' : 'opacity-40'}`}>
+              {/* Step indicator */}
+              <div className="flex-shrink-0 mt-0.5">
+                {isActive ? (
+                  <div className="w-6 h-6 rounded-full border-2 border-orange-400 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse" />
+                  </div>
+                ) : isComplete ? (
+                  <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center">
+                    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                ) : isFailed ? (
+                  <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
+                    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </div>
+                ) : (
+                  <div className="w-6 h-6 rounded-full border-2 border-gray-200 flex items-center justify-center">
+                    <span className="text-[9px] text-gray-300 font-semibold">{stepNum}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Step content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <p className={`text-xs font-medium ${isActive ? 'text-orange-800' : isComplete ? 'text-emerald-800' : isFailed ? 'text-red-800' : 'text-gray-400'}`}>
+                    Step {stepNum}: {label.name}
+                  </p>
+                  {stepData?.durationMs != null && (
+                    <span className="text-[10px] text-gray-400 font-mono ml-2 flex-shrink-0">{(stepData.durationMs / 1000).toFixed(1)}s</span>
+                  )}
+                </div>
+                <p className={`text-[10px] mt-0.5 ${isActive ? 'text-orange-600' : isComplete ? 'text-emerald-600' : isFailed ? 'text-red-500' : 'text-gray-300'}`}>
+                  {label.desc}
+                </p>
+                {/* Show key details */}
+                {isComplete && stepData?.details && (
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {Object.entries(stepData.details).map(([k, v]) => (
+                      <span key={k} className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-mono">
+                        {k}: {String(v).length > 24 ? String(v).slice(0, 24) + '...' : String(v)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {error && (
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-xs text-red-600 font-medium">Negotiation Failed</p>
+          <p className="text-[10px] text-red-500 mt-1">{error}</p>
+        </div>
+      )}
+
+      {/* Protocol badge */}
+      <div className="mt-6 flex items-center justify-center gap-2">
+        <span className="text-[9px] text-gray-300 bg-gray-50 border border-gray-100 px-2 py-1 rounded">IDSA Dataspace Protocol</span>
+        <span className="text-[9px] text-gray-300 bg-gray-50 border border-gray-100 px-2 py-1 rounded">ODRL Policy</span>
+        <span className="text-[9px] text-gray-300 bg-gray-50 border border-gray-100 px-2 py-1 rounded">HttpData-PULL</span>
+      </div>
+
+      {/* Success + Continue */}
+      {done && (
+        <div className="mt-6 text-center">
+          <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-lg mb-4">
+            <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+            <span className="text-xs font-medium text-emerald-800">Sovereign data exchange completed successfully</span>
+          </div>
+          <br />
+          <button
+            onClick={onContinue}
+            className="bg-gray-900 hover:bg-gray-800 text-white px-8 py-3 rounded-lg text-sm font-medium transition-colors"
+          >
+            View Insurance Quote &rarr;
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function QuotePage() {
   const { vin } = useParams<{ vin: string }>()
@@ -15,27 +160,110 @@ export default function QuotePage() {
   const [consentDPP, setConsentDPP] = useState(false)
   const [consentPremium, setConsentPremium] = useState(false)
   const [consentTerms, setConsentTerms] = useState(false)
-
   const [edcError, setEdcError] = useState('')
+  const [steps, setSteps] = useState<StepData[]>([])
+  const stepsRef = useRef<StepData[]>([])
+  const [showStepper, setShowStepper] = useState(true)
+  const [negotiationDone, setNegotiationDone] = useState(false)
 
   useEffect(() => {
-    const abortController = new AbortController()
-    api.post(`/edc/negotiate`, { vin }, { signal: abortController.signal })
-      .then(r => { setCar(r.data); setLoading(false) })
-      .catch(e => {
-        if (abortController.signal.aborted) return
-        const err = e as { response?: { data?: { error?: string; details?: string } } }
-        setEdcError(err.response?.data?.details || err.response?.data?.error || 'EDC negotiation failed')
-        setLoading(false)
-      })
-    return () => { abortController.abort() }
+    let cancelled = false
+
+    async function negotiate() {
+      try {
+        // Use SSE streaming for real-time step updates
+        const response = await fetch('http://localhost:8000/api/edc/negotiate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify({ vin, stream: true }),
+        })
+
+        if (!response.ok || !response.body) {
+          throw new Error('Failed to start EDC negotiation stream')
+        }
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done || cancelled) break
+
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+
+          let currentEvent = ''
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              currentEvent = line.slice(7).trim()
+            } else if (line.startsWith('data: ') && currentEvent) {
+              try {
+                const data = JSON.parse(line.slice(6))
+                if (currentEvent === 'step') {
+                  const stepUpdate = data as StepData
+                  stepsRef.current = [...stepsRef.current.filter(s => !(s.step === stepUpdate.step && stepUpdate.status !== 'running')), stepUpdate]
+                    .sort((a, b) => a.step - b.step)
+                    // Deduplicate: keep latest status per step
+                    .reduce<StepData[]>((acc, s) => {
+                      const existing = acc.find(x => x.step === s.step)
+                      if (existing) {
+                        Object.assign(existing, s)
+                      } else {
+                        acc.push(s)
+                      }
+                      return acc
+                    }, [])
+                  if (!cancelled) setSteps([...stepsRef.current])
+                } else if (currentEvent === 'complete') {
+                  if (!cancelled) {
+                    setCar(data)
+                    setNegotiationDone(true)
+                  }
+                } else if (currentEvent === 'error') {
+                  if (!cancelled) {
+                    setEdcError(data.error || 'EDC negotiation failed')
+                    setLoading(false)
+                    setShowStepper(false)
+                  }
+                }
+              } catch { /* ignore parse errors */ }
+              currentEvent = ''
+            }
+          }
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          // Fallback to non-streaming if SSE fails
+          try {
+            const r = await api.post('/edc/negotiate', { vin })
+            if (!cancelled) { setCar(r.data); setLoading(false); setShowStepper(false) }
+          } catch (fallbackErr: any) {
+            if (!cancelled) {
+              const err = fallbackErr as { response?: { data?: { error?: string; details?: string } } }
+              setEdcError(err.response?.data?.details || err.response?.data?.error || 'EDC negotiation failed')
+              setLoading(false)
+            }
+          }
+        }
+      }
+    }
+
+    negotiate()
+    return () => { cancelled = true }
   }, [vin])
 
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center h-64 gap-3">
-      <div className="animate-spin w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full"></div>
-      <p className="text-xs text-gray-400">Negotiating data transfer via EDC...</p>
-    </div>
+  if (showStepper) return (
+    <EdcNegotiationStepper
+      steps={steps}
+      error={edcError}
+      done={negotiationDone}
+      onContinue={() => { setShowStepper(false); setLoading(false) }}
+    />
   )
   if (edcError) return (
     <div className="max-w-sm mx-auto mt-24 px-6 text-center">
@@ -78,6 +306,17 @@ export default function QuotePage() {
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         New Quote
       </button>
+
+      {/* EDC Exchange badge */}
+      <div className="mb-6 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-3">
+        <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-emerald-800">Data Obtained via Sovereign EDC Exchange</p>
+          <p className="text-[10px] text-emerald-600">Vehicle DPP transferred from TATA Motors connector using IDSA Dataspace Protocol with ODRL contract agreement</p>
+        </div>
+      </div>
 
       {/* Vehicle header */}
       <div className="mb-8">

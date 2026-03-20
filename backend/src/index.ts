@@ -11,6 +11,9 @@ import purchasesRouter from './routes/purchases';
 import vcRouter from './routes/vc';
 import orgCredentialsRouter from './routes/org-credentials';
 import edcRouter from './routes/edc';
+import vehicleRegistryRouter from './routes/vehicle-registry';
+import verifierRouter from './routes/verifier';
+import walletVPRouter from './routes/wallet-vp';
 import { GaiaXClient, getVPSigner } from './services/gaiax';
 import db from './db';
 import { OrgCredentialRecord } from './services/gaiax/types';
@@ -38,6 +41,14 @@ app.use('/api/purchases', purchasesRouter);
 app.use('/api/vc', vcRouter);
 app.use('/api/org-credentials', orgCredentialsRouter);
 app.use('/api/edc', edcRouter);
+app.use('/api/vehicle-registry', vehicleRegistryRouter);
+app.use('/api/verifier', verifierRouter);
+app.use('/api/wallet-vp', walletVPRouter);
+
+// Well-known endpoint for vehicle registry discovery
+app.get('/.well-known/vehicle-registry', (_req, res) => {
+  res.redirect('/api/vehicle-registry/well-known');
+});
 
 // DID document for did:web resolution (needed by GXDCH compliance)
 // did:web resolution endpoints (/.well-known/did.json and /path/did.json)

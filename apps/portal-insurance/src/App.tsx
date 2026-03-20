@@ -4,6 +4,7 @@ import VinLookup from './pages/VinLookup'
 import ConsentWait from './pages/ConsentWait'
 import QuotePage from './pages/QuotePage'
 import PolicySuccess from './pages/PolicySuccess'
+import VPInsuranceFlow from './pages/VPInsuranceFlow'
 
 const insuranceTheme: PortalTheme = {
   portalName: 'Digit Insurance',
@@ -15,10 +16,10 @@ const insuranceTheme: PortalTheme = {
   iconBg: 'bg-[#FBBC05]',
   description: 'Look up any vehicle by VIN, request DPP access with owner consent, and generate transparent, data-driven insurance quotes instantly.',
   features: [
-    'VIN-based vehicle lookup with Digital Product Passport data',
-    'Consent-driven data access — owners approve in their wallet',
+    'VP-based vehicle ownership verification via OpenID4VP',
+    'QR code / deep-link wallet presentation flow',
+    'DID-resolved manufacturer service endpoints',
     'Transparent premium calculation from DPP damage & condition data',
-    'Instant policy issuance with Verifiable Credential delivery',
   ],
   loginHint: 'Login as digit-agent / digit',
 }
@@ -47,7 +48,8 @@ export default function App() {
       </nav>
       <ProtectedRoute role={ROLES.INSURANCE_AGENT} theme={insuranceTheme}>
         <Routes>
-          <Route path="/" element={<VinLookup />} />
+          <Route path="/" element={<VPInsuranceFlow />} />
+          <Route path="/legacy" element={<VinLookup />} />
           <Route path="/consent-wait/:vin/:consentId" element={<ConsentWait />} />
           <Route path="/quote/:vin" element={<QuotePage />} />
           <Route path="/policy-success/:policyNumber" element={<PolicySuccess />} />

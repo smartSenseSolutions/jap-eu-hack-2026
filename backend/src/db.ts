@@ -13,6 +13,11 @@ interface DbSchema {
   purchases: any[];
   insurance_policies: any[];
   org_credentials: any[];
+  edc_transactions: any[];
+  vehicle_audit_log: any[];
+  access_sessions: any[];
+  presentation_requests: any[];
+  presentation_sessions: any[];
 }
 
 const adapter = new FileSync<DbSchema>(path.join(__dirname, '../data/db.json'));
@@ -27,7 +32,12 @@ db.defaults({
   consent: [],
   purchases: [],
   insurance_policies: [],
-  org_credentials: []
+  org_credentials: [],
+  edc_transactions: [],
+  vehicle_audit_log: [],
+  access_sessions: [],
+  presentation_requests: [],
+  presentation_sessions: []
 }).write();
 
 // Seed essential data so the demo works from a fresh DB

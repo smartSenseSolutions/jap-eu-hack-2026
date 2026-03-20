@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
+import db from '../db';
 
 const EDC_MGMT_URL = process.env.EDC_CONSUMER_MANAGEMENT_URL || '';
 const EDC_API_KEY = process.env.EDC_CONSUMER_API_KEY || '';
@@ -17,6 +19,56 @@ const headers = {
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+export interface EdcStepUpdate {
+  step: number;
+  totalSteps: number;
+  name: string;
+  status: 'running' | 'completed' | 'failed';
+  durationMs?: number;
+  details?: Record<string, unknown>;
+}
+
+export interface EdcTransaction {
+  id: string;
+  vin: string;
+  consumer: { name: string; bpn: string };
+  provider: { name: string; bpn: string; dspUrl: string };
+  assetId?: string;
+  offerId?: string;
+  negotiationId?: string;
+  contractAgreementId?: string;
+  transferId?: string;
+  status: 'running' | 'completed' | 'failed';
+  steps: Array<{
+    step: number;
+    name: string;
+    status: 'running' | 'completed' | 'failed';
+    startedAt: string;
+    completedAt?: string;
+    durationMs?: number;
+    details?: Record<string, unknown>;
+  }>;
+  dataCategories: string[];
+  consentId?: string;
+  requestedBy?: string;
+  startedAt: string;
+  completedAt?: string;
+  totalDurationMs?: number;
+  error?: string;
+}
+
+export type ProgressCallback = (update: EdcStepUpdate) => void;
+
+const STEP_NAMES = [
+  'Query Partner Catalog',
+  'Initiate Contract Negotiation',
+  'Wait for Agreement Finalization',
+  'Initiate Data Transfer',
+  'Get Transfer Process (EDR)',
+  'Obtain Authorization Token',
+  'Fetch DPP Data from Data Plane',
+];
 
 // Step 1: Query catalog and find asset matching VIN
 export async function queryCatalog(vin: string): Promise<{ assetId: string; offerId: string }> {
@@ -38,12 +90,9 @@ export async function queryCatalog(vin: string): Promise<{ assetId: string; offe
     },
   };
 
-  console.log('[EDC Consumer] Catalog request payload:', JSON.stringify(payload, null, 2));
   const response = await axios.post(`${EDC_MGMT_URL}/v3/catalog/request`, payload, { headers, timeout: 15000 });
-  console.log('[EDC Consumer] Catalog response:', JSON.stringify(response.data, null, 2));
 
   const datasets = response.data['dcat:dataset'];
-  // dcat:dataset can be a single object or an array
   const datasetList = Array.isArray(datasets) ? datasets : datasets ? [datasets] : [];
 
   const assetKey = `asset_${vin}`;
@@ -60,13 +109,11 @@ export async function queryCatalog(vin: string): Promise<{ assetId: string; offe
     throw new Error(`No offer found for asset: ${assetId}`);
   }
 
-  console.log(`[EDC Consumer] Found asset: ${assetId}, offer: ${offerId}`);
   return { assetId, offerId };
 }
 
 // Step 2: Initiate contract negotiation
 export async function initiateNegotiation(offerId: string, assetId: string): Promise<string> {
-  console.log(`[EDC Consumer] Initiating negotiation for asset: ${assetId}`);
   const payload = {
     '@context': {
       '@vocab': 'https://w3id.org/edc/v0.0.1/ns/',
@@ -85,34 +132,23 @@ export async function initiateNegotiation(offerId: string, assetId: string): Pro
     },
   };
 
-  console.log('[EDC Consumer] Negotiation request payload:', JSON.stringify(payload, null, 2));
   const response = await axios.post(`${EDC_MGMT_URL}/v3/contractnegotiations`, payload, { headers, timeout: 10000 });
-  console.log('[EDC Consumer] Negotiation response:', JSON.stringify(response.data, null, 2));
-  const negotiationId = response.data['@id'];
-  console.log(`[EDC Consumer] Negotiation initiated: ${negotiationId}`);
-  return negotiationId;
+  return response.data['@id'];
 }
 
 // Step 3: Poll for agreement until FINALIZED
 export async function waitForAgreement(negotiationId: string): Promise<string> {
-  console.log(`[EDC Consumer] Waiting for agreement (initial delay: ${NEGOTIATION_INITIAL_DELAY}ms)`);
   await sleep(NEGOTIATION_INITIAL_DELAY);
 
   for (let attempt = 1; attempt <= NEGOTIATION_MAX_RETRIES; attempt++) {
-    console.log(`[EDC Consumer] Checking negotiation status (attempt ${attempt}/${NEGOTIATION_MAX_RETRIES})`);
     const response = await axios.get(`${EDC_MGMT_URL}/v3/contractnegotiations/${negotiationId}`, {
       headers: { 'x-api-key': EDC_API_KEY },
       timeout: 10000,
     });
-    console.log(`[EDC Consumer] Agreement poll response:`, JSON.stringify(response.data, null, 2));
 
     const state = response.data.state;
-    console.log(`[EDC Consumer] Negotiation state: ${state}`);
-
     if (state === 'FINALIZED') {
-      const agreementId = response.data.contractAgreementId;
-      console.log(`[EDC Consumer] Agreement finalized: ${agreementId}`);
-      return agreementId;
+      return response.data.contractAgreementId;
     }
 
     if (attempt < NEGOTIATION_MAX_RETRIES) {
@@ -125,7 +161,6 @@ export async function waitForAgreement(negotiationId: string): Promise<string> {
 
 // Step 4: Initiate transfer
 export async function initiateTransfer(assetId: string, contractAgreementId: string): Promise<string> {
-  console.log(`[EDC Consumer] Initiating transfer for asset: ${assetId}`);
   const payload = {
     '@context': {
       '@vocab': 'https://w3id.org/edc/v0.0.1/ns/',
@@ -139,17 +174,12 @@ export async function initiateTransfer(assetId: string, contractAgreementId: str
     transferType: 'HttpData-PULL',
   };
 
-  console.log('[EDC Consumer] Transfer request payload:', JSON.stringify(payload, null, 2));
   const response = await axios.post(`${EDC_MGMT_URL}/v3/transferprocesses`, payload, { headers, timeout: 10000 });
-  console.log('[EDC Consumer] Transfer response:', JSON.stringify(response.data, null, 2));
-  const transferId = response.data['@id'];
-  console.log(`[EDC Consumer] Transfer initiated: ${transferId}`);
-  return transferId;
+  return response.data['@id'];
 }
 
 // Step 5: Get transfer process (EDR entry)
 export async function getTransferProcess(contractAgreementId: string): Promise<string> {
-  console.log(`[EDC Consumer] Getting transfer process for agreement: ${contractAgreementId}`);
   const payload = {
     '@context': {
       '@vocab': 'https://w3id.org/edc/v0.0.1/ns/',
@@ -166,29 +196,22 @@ export async function getTransferProcess(contractAgreementId: string): Promise<s
     ],
   };
 
-  console.log('[EDC Consumer] EDR request payload:', JSON.stringify(payload, null, 2));
   const response = await axios.post(`${EDC_MGMT_URL}/v3/edrs/request`, payload, { headers, timeout: 10000 });
-  console.log('[EDC Consumer] EDR response:', JSON.stringify(response.data, null, 2));
   const entries = response.data;
 
   if (!entries || entries.length === 0) {
     throw new Error('No EDR entry found for the agreement');
   }
 
-  const transferId = entries[0].transferProcessId || entries[0]['@id'];
-  console.log(`[EDC Consumer] Transfer process ID: ${transferId}`);
-  return transferId;
+  return entries[0].transferProcessId || entries[0]['@id'];
 }
 
 // Step 6: Get auth code (data address with endpoint + token)
 export async function getAuthCode(transferId: string): Promise<{ endpoint: string; authorization: string }> {
-  console.log(`[EDC Consumer] Getting auth code for transfer: ${transferId}`);
-  console.log(`[EDC Consumer] Auth code URL: ${EDC_MGMT_URL}/v2/edrs/${transferId}/dataaddress?auto_refresh=true`);
   const response = await axios.get(
     `${EDC_MGMT_URL}/v2/edrs/${transferId}/dataaddress?auto_refresh=true`,
     { headers: { 'x-api-key': EDC_API_KEY }, timeout: 10000 },
   );
-  console.log('[EDC Consumer] Auth code response:', JSON.stringify(response.data, null, 2));
 
   const endpoint = response.data.endpoint;
   const authorization = response.data.authorization;
@@ -197,75 +220,145 @@ export async function getAuthCode(transferId: string): Promise<{ endpoint: strin
     throw new Error('Missing endpoint or authorization in data address response');
   }
 
-  console.log(`[EDC Consumer] Data endpoint: ${endpoint}`);
-  console.log(`[EDC Consumer] Authorization token: ${authorization.substring(0, 50)}...`);
   return { endpoint, authorization };
 }
 
 // Step 7: Fetch actual asset data from data plane
 export async function fetchAssetData(endpoint: string, authorization: string): Promise<any> {
-  console.log(`[EDC Consumer] Fetching asset data from: ${endpoint}`);
-  console.log(`[EDC Consumer] Using authorization header: ${authorization.substring(0, 50)}...`);
   const response = await axios.get(endpoint, {
     headers: { Authorization: authorization },
     timeout: 30000,
   });
-  console.log('[EDC Consumer] Asset data received:', JSON.stringify(response.data, null, 2));
   return response.data;
 }
 
-// Full orchestration: all 7 steps
-export async function negotiateAndFetchData(vin: string): Promise<any> {
-  console.log(`\n${'='.repeat(60)}`);
-  console.log(`[EDC Consumer] Starting full negotiation for VIN: ${vin}`);
-  console.log(`[EDC Consumer] Config: MGMT_URL=${EDC_MGMT_URL}, PARTNER_BPN=${PARTNER_BPN}, DSP_URL=${PARTNER_DSP_URL}`);
-  console.log(`${'='.repeat(60)}\n`);
+// Full orchestration with progress callbacks and transaction logging
+export async function negotiateAndFetchData(
+  vin: string,
+  onProgress?: ProgressCallback,
+  meta?: { consentId?: string; requestedBy?: string },
+): Promise<any> {
+  const txId = uuidv4();
+  const tx: EdcTransaction = {
+    id: txId,
+    vin,
+    consumer: { name: 'Digit Insurance', bpn: process.env.BPN_NUMBER || 'BPNL_CONSUMER' },
+    provider: { name: 'TATA Motors', bpn: PARTNER_BPN, dspUrl: PARTNER_DSP_URL },
+    status: 'running',
+    steps: [],
+    dataCategories: [
+      'Vehicle Identity',
+      'State of Health',
+      'Damage History',
+      'Service History',
+      'Ownership Chain',
+      'Compliance Records',
+    ],
+    consentId: meta?.consentId,
+    requestedBy: meta?.requestedBy,
+    startedAt: new Date().toISOString(),
+  };
+
+  // Persist initial transaction
+  db.get('edc_transactions').push(tx).write();
+
+  const emitStep = (step: number, status: 'running' | 'completed' | 'failed', durationMs?: number, details?: Record<string, unknown>) => {
+    const update: EdcStepUpdate = { step, totalSteps: 7, name: STEP_NAMES[step - 1], status, durationMs, details };
+    if (onProgress) onProgress(update);
+
+    // Update transaction record
+    const existing = tx.steps.find(s => s.step === step);
+    if (existing) {
+      existing.status = status;
+      if (status !== 'running') {
+        existing.completedAt = new Date().toISOString();
+        existing.durationMs = durationMs;
+      }
+      if (details) existing.details = details;
+    } else {
+      tx.steps.push({
+        step,
+        name: STEP_NAMES[step - 1],
+        status,
+        startedAt: new Date().toISOString(),
+        completedAt: status !== 'running' ? new Date().toISOString() : undefined,
+        durationMs,
+        details,
+      });
+    }
+    db.get('edc_transactions').find({ id: txId }).assign(tx).write();
+  };
+
+  const globalStart = Date.now();
 
   try {
     // Step 1
-    console.log('[EDC Consumer] === Step 1: Query Catalog ===');
+    emitStep(1, 'running');
+    let t0 = Date.now();
     const { assetId, offerId } = await queryCatalog(vin);
+    tx.assetId = assetId;
+    tx.offerId = offerId;
+    emitStep(1, 'completed', Date.now() - t0, { assetId, offerId });
 
     // Step 2
-    console.log('\n[EDC Consumer] === Step 2: Initiate Negotiation ===');
+    emitStep(2, 'running');
+    t0 = Date.now();
     const negotiationId = await initiateNegotiation(offerId, assetId);
+    tx.negotiationId = negotiationId;
+    emitStep(2, 'completed', Date.now() - t0, { negotiationId });
 
     // Step 3
-    console.log('\n[EDC Consumer] === Step 3: Wait for Agreement ===');
+    emitStep(3, 'running');
+    t0 = Date.now();
     const contractAgreementId = await waitForAgreement(negotiationId);
+    tx.contractAgreementId = contractAgreementId;
+    emitStep(3, 'completed', Date.now() - t0, { contractAgreementId });
 
     // Step 4
-    console.log('\n[EDC Consumer] === Step 4: Initiate Transfer ===');
+    emitStep(4, 'running');
+    t0 = Date.now();
     const transferId = await initiateTransfer(assetId, contractAgreementId);
+    tx.transferId = transferId;
+    emitStep(4, 'completed', Date.now() - t0, { transferId });
 
-    // Step 5 - small delay for transfer to register
-    console.log('\n[EDC Consumer] === Step 5: Get Transfer Process ===');
-    console.log('[EDC Consumer] Waiting 2s for transfer to register...');
+    // Step 5
+    emitStep(5, 'running');
+    t0 = Date.now();
     await sleep(2000);
     await getTransferProcess(contractAgreementId);
+    emitStep(5, 'completed', Date.now() - t0);
 
     // Step 6
-    console.log('\n[EDC Consumer] === Step 6: Get Auth Code ===');
+    emitStep(6, 'running');
+    t0 = Date.now();
     const { endpoint, authorization } = await getAuthCode(transferId);
+    emitStep(6, 'completed', Date.now() - t0, { dataPlaneEndpoint: endpoint });
 
     // Step 7
-    console.log('\n[EDC Consumer] === Step 7: Fetch Asset Data ===');
+    emitStep(7, 'running');
+    t0 = Date.now();
     const data = await fetchAssetData(endpoint, authorization);
+    emitStep(7, 'completed', Date.now() - t0, { fieldsReceived: Object.keys(data).length });
 
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`[EDC Consumer] Negotiation COMPLETE for VIN: ${vin}`);
-    console.log(`${'='.repeat(60)}\n`);
+    // Finalize
+    tx.status = 'completed';
+    tx.completedAt = new Date().toISOString();
+    tx.totalDurationMs = Date.now() - globalStart;
+    db.get('edc_transactions').find({ id: txId }).assign(tx).write();
 
     return data;
   } catch (error: any) {
-    console.error(`\n${'='.repeat(60)}`);
-    console.error(`[EDC Consumer] Negotiation FAILED for VIN: ${vin}`);
-    console.error(`[EDC Consumer] Error: ${error.message}`);
-    if (error.response) {
-      console.error(`[EDC Consumer] HTTP Status: ${error.response.status}`);
-      console.error(`[EDC Consumer] Response Body:`, JSON.stringify(error.response.data, null, 2));
+    const failedStep = tx.steps.find(s => s.status === 'running');
+    if (failedStep) {
+      failedStep.status = 'failed';
+      failedStep.completedAt = new Date().toISOString();
+      emitStep(failedStep.step, 'failed', undefined, { error: error.message });
     }
-    console.error(`${'='.repeat(60)}\n`);
+    tx.status = 'failed';
+    tx.error = error.message;
+    tx.completedAt = new Date().toISOString();
+    tx.totalDurationMs = Date.now() - globalStart;
+    db.get('edc_transactions').find({ id: txId }).assign(tx).write();
     throw error;
   }
 }

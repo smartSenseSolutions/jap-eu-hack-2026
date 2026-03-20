@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 export default function BuySuccess() {
   const { vin } = useParams()
   const navigate = useNavigate()
+  const carId = `http://localhost:8000/api/vehicle-registry/vehicles/${vin}`
 
   return (
     <div className="max-w-md mx-auto mt-24 px-6 text-center">
@@ -11,7 +12,28 @@ export default function BuySuccess() {
       </div>
       <h1 className="text-xl font-semibold text-gray-900 mb-2">Purchase Successful</h1>
       <p className="text-sm text-gray-400 mb-1">VIN <span className="font-mono text-gray-500">{vin}</span></p>
-      <p className="text-sm text-gray-400 mb-8">An Ownership Credential has been issued to Mario Sanchez's wallet.</p>
+      <p className="text-sm text-gray-400 mb-6">An Ownership Credential has been issued to Mario Sanchez's wallet.</p>
+
+      {/* Car ID */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-left">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-6 h-6 bg-[#1A47A0] rounded flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-bold text-[10px]">T</span>
+          </div>
+          <p className="text-[10px] text-blue-600 font-medium uppercase tracking-wide">Your Car ID</p>
+        </div>
+        <p className="text-[11px] text-blue-800 font-mono break-all">{carId}</p>
+        <p className="text-[10px] text-blue-500 mt-2">
+          This is your vehicle's resolvable identifier in the TATA Motors Vehicle Asset Registry.
+          Third parties (like insurers) will use this Car ID to look up your vehicle — but protected data
+          requires your explicit consent in the SmartSense Wallet.
+        </p>
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          <span className="text-[8px] bg-emerald-100 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded-full">Manufacturer-Hosted</span>
+          <span className="text-[8px] bg-blue-100 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full">HTTPS Resolvable</span>
+          <span className="text-[8px] bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full">Owner-Controlled Access</span>
+        </div>
+      </div>
 
       <div className="bg-gray-50 rounded-lg p-4 mb-8 text-left">
         <p className="text-xs font-medium text-gray-500 mb-2">Next steps</p>
@@ -19,6 +41,7 @@ export default function BuySuccess() {
           <p>Ownership VC added to SmartSense Wallet (port 3004)</p>
           <p>Car DPP now linked to your identity</p>
           <p>Get insurance at Digit Insurance Portal (port 3005)</p>
+          <p>Share your Car ID with insurers to start a quote</p>
         </div>
       </div>
 
