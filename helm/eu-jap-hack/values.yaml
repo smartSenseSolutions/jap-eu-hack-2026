@@ -162,30 +162,6 @@ portalCompany:
       memory: 128Mi
 
 # =============================================================================
-# Keycloak
-# =============================================================================
-keycloak:
-  replicaCount: 1
-  image:
-    repository: keycloak/keycloak
-    tag: "26.0"
-    pullPolicy: IfNotPresent
-  service:
-    port: 8080
-  ingress:
-    host: ""  # e.g. auth.example.com
-  env:
-    KEYCLOAK_ADMIN: admin
-    KEYCLOAK_ADMIN_PASSWORD: admin
-  resources:
-    requests:
-      cpu: 200m
-      memory: 512Mi
-    limits:
-      cpu: 1000m
-      memory: 1Gi
-
-# =============================================================================
 # Walt.id Services
 # =============================================================================
 waltidWalletApi:
