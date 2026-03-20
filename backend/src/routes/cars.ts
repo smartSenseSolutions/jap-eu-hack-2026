@@ -16,7 +16,43 @@ router.get('/', async (req, res) => {
 router.get('/:vin', async (req, res) => {
   const car = await prisma.car.findUnique({ where: { vin: req.params.vin } });
   if (!car) return res.status(404).json({ error: 'Car not found' });
-  res.json(car);
+
+  // Backfill manufacturerCredential (or its legalParticipantId) from DB if missing
+  const dpp = (car.dpp ?? {}) as Record<string, unknown>;
+  const mfgCred = dpp.manufacturerCredential as Record<string, unknown> | undefined;
+  if (!mfgCred?.legalParticipantId) {
+    const company = await prisma.company.findFirst({
+      where: { name: { contains: car.make, mode: 'insensitive' } },
+    });
+    if (company) {
+      const orgCredential = await prisma.orgCredential.findFirst({
+        where: { companyId: company.id },
+      });
+      const credential = company.credentialId
+        ? await prisma.credential.findUnique({ where: { id: company.credentialId } })
+        : null;
+      if (orgCredential) {
+        dpp.manufacturerCredential = {
+          ...mfgCred,  // preserve any fields already set by the frontend
+          credentialId: company.credentialId || orgCredential.id,
+          legalParticipantId: orgCredential.id,
+          issuer: credential?.issuerName || 'EU APAC Dataspace',
+          issuerDid: company.did || undefined,
+          holder: orgCredential.legalName,
+          type: credential?.type || 'OrgVC',
+          issuedAt: orgCredential.validFrom.toISOString(),
+          status: orgCredential.verificationStatus === 'draft' ? 'active' : orgCredential.verificationStatus,
+        };
+        // Persist the backfill so it's only computed once
+        await prisma.car.update({
+          where: { vin: car.vin },
+          data: { dpp: dpp as any },
+        });
+      }
+    }
+  }
+
+  res.json({ ...car, dpp });
 });
 
 router.post('/', requireRole('admin'), async (req, res) => {
@@ -36,6 +72,36 @@ router.post('/', requireRole('admin'), async (req, res) => {
     }
   }
 
+  // Auto-attach manufacturer credential from DB (ensures legalParticipantId is always set)
+  const dpp = (car.dpp ?? {}) as Record<string, unknown>;
+  const existingMfgCred = dpp.manufacturerCredential as Record<string, unknown> | undefined;
+  if (!existingMfgCred?.legalParticipantId) {
+    const company = await prisma.company.findFirst({
+      where: { name: { contains: car.make, mode: 'insensitive' } },
+    });
+    if (company) {
+      const orgCredential = await prisma.orgCredential.findFirst({
+        where: { companyId: company.id },
+      });
+      const credential = company.credentialId
+        ? await prisma.credential.findUnique({ where: { id: company.credentialId } })
+        : null;
+      if (orgCredential) {
+        dpp.manufacturerCredential = {
+          ...existingMfgCred,
+          credentialId: company.credentialId || orgCredential.id,
+          legalParticipantId: orgCredential.id,
+          issuer: credential?.issuerName || 'EU APAC Dataspace',
+          issuerDid: company.did || undefined,
+          holder: orgCredential.legalName,
+          type: credential?.type || 'OrgVC',
+          issuedAt: orgCredential.validFrom.toISOString(),
+          status: orgCredential.verificationStatus === 'draft' ? 'active' : orgCredential.verificationStatus,
+        };
+      }
+    }
+  }
+
   const created = await prisma.car.create({
     data: {
       id: car.id,
@@ -46,7 +112,7 @@ router.post('/', requireRole('admin'), async (req, res) => {
       price: car.price,
       status: car.status || 'available',
       ownerId: car.ownerId,
-      dpp: car.dpp || undefined,
+      dpp: dpp as any,
     },
   });
   res.status(201).json(created);
