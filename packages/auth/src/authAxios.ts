@@ -1,9 +1,8 @@
 import axios, { type AxiosInstance } from 'axios';
-
-const API_BASE = 'http://localhost:8000/api';
+import { getApiBase } from './config';
 
 export function createAuthAxios(getToken: () => string): AxiosInstance {
-  const instance = axios.create({ baseURL: API_BASE });
+  const instance = axios.create({ baseURL: getApiBase() });
 
   instance.interceptors.request.use((config) => {
     const token = getToken();

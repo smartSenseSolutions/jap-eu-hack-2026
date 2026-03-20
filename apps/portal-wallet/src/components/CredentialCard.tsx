@@ -1,4 +1,5 @@
 import { ReactNode } from 'react'
+import { getApiBase } from '@eu-jap-hack/auth'
 
 const typeConfig: Record<string, { accentBg: string; accentText: string; borderColor: string; label: string; icon: ReactNode }> = {
   SelfVC: {
@@ -90,7 +91,7 @@ export default function CredentialCard({ credential, onClick, extra }: Props) {
             <p className="text-[10px] text-[#9AA0A6] mt-2">Issued by {credential.issuerName as string} &middot; {new Date(credential.issuedAt as string).toLocaleDateString()}</p>
             <div className="flex flex-col gap-0.5 mt-1">
               <a
-                href={`http://localhost:8000/api/credentials/${credential.id as string}`}
+                href={`${getApiBase()}/credentials/${credential.id as string}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={e => e.stopPropagation()}

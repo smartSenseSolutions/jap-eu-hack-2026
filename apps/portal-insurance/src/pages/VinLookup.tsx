@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { useAuthUser, createAuthAxios } from '@eu-jap-hack/auth'
+import { useAuthUser, createAuthAxios, getApiBase } from '@eu-jap-hack/auth'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = getApiBase()
 
 export default function VinLookup() {
   const { userId, accessToken } = useAuthUser()

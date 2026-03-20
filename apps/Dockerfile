@@ -39,5 +39,9 @@ COPY --from=build /app/apps/${APP_NAME}/dist /usr/share/nginx/html
 # Support SPA routing
 RUN echo 'server { listen 80; root /usr/share/nginx/html; index index.html; location / { try_files $uri $uri/ /index.html; } }' > /etc/nginx/conf.d/default.conf
 
+# Runtime config entrypoint
+COPY apps/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/docker-entrypoint.sh"]

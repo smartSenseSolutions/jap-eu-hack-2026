@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { getApiBase } from '@eu-jap-hack/auth'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = getApiBase()
 
 const catenaXGuidelines = [
   { section: 'Identification', fields: 'Manufacturer Part ID, Name at Manufacturer, Serial (VIN), Codes, Data Carrier, Classification', standard: 'CX-0143' },

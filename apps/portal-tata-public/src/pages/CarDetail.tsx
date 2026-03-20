@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { useAuthUser, createAuthAxios } from '@eu-jap-hack/auth'
+import { useAuthUser, createAuthAxios, getApiBase } from '@eu-jap-hack/auth'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = getApiBase()
 
 function renderDPPValue(value: unknown, depth: number = 0): JSX.Element {
   if (value === null || value === undefined) return <span className="text-gray-300">&mdash;</span>
@@ -233,7 +233,7 @@ export default function CarDetail() {
                       <div className="px-5 pb-4">
                         {isVC && !!(content as Record<string, unknown>)?.legalParticipantId && (
                           <a
-                            href={`http://localhost:8000/vc/${(content as Record<string, unknown>).legalParticipantId}`}
+                            href={`${API_BASE.replace('/api', '')}/vc/${(content as Record<string, unknown>).legalParticipantId}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 text-[11px] text-indigo-600 hover:text-indigo-800 font-mono mb-3 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-1.5"

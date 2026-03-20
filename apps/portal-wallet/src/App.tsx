@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { ProtectedRoute, useAuthUser, createAuthAxios, ROLES, PortalTheme } from '@eu-jap-hack/auth'
+import { ProtectedRoute, useAuthUser, createAuthAxios, ROLES, PortalTheme, getApiBase } from '@eu-jap-hack/auth'
 import CredentialCard from './components/CredentialCard'
 import ConsentModal from './components/ConsentModal'
 import { useConsentPolling } from './hooks/useConsentPolling'
 import DPPViewer from './pages/DPPViewer'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = getApiBase()
 
 function WalletHome() {
   const { userId, fullName, accessToken, logout } = useAuthUser()

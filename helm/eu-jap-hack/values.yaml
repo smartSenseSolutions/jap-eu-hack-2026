@@ -63,6 +63,10 @@ portalDataspace:
     port: 80
   ingress:
     host: ""  # e.g. dataspace.example.com
+  env:
+    VITE_KEYCLOAK_URL: ""
+    VITE_KEYCLOAK_REALM: "eu-jap-hack"
+    VITE_API_BASE_URL: ""
   resources:
     requests:
       cpu: 50m
@@ -81,6 +85,10 @@ portalTataAdmin:
     port: 80
   ingress:
     host: ""  # e.g. admin.example.com
+  env:
+    VITE_KEYCLOAK_URL: ""
+    VITE_KEYCLOAK_REALM: "eu-jap-hack"
+    VITE_API_BASE_URL: ""
   resources:
     requests:
       cpu: 50m
@@ -99,6 +107,10 @@ portalTataPublic:
     port: 80
   ingress:
     host: ""  # e.g. public.example.com
+  env:
+    VITE_KEYCLOAK_URL: ""
+    VITE_KEYCLOAK_REALM: "eu-jap-hack"
+    VITE_API_BASE_URL: ""
   resources:
     requests:
       cpu: 50m
@@ -117,6 +129,10 @@ portalWallet:
     port: 80
   ingress:
     host: ""  # e.g. wallet.example.com
+  env:
+    VITE_KEYCLOAK_URL: ""
+    VITE_KEYCLOAK_REALM: "eu-jap-hack"
+    VITE_API_BASE_URL: ""
   resources:
     requests:
       cpu: 50m
@@ -135,6 +151,10 @@ portalInsurance:
     port: 80
   ingress:
     host: ""  # e.g. insurance.example.com
+  env:
+    VITE_KEYCLOAK_URL: ""
+    VITE_KEYCLOAK_REALM: "eu-jap-hack"
+    VITE_API_BASE_URL: ""
   resources:
     requests:
       cpu: 50m
@@ -153,6 +173,10 @@ portalCompany:
     port: 80
   ingress:
     host: ""  # e.g. company.example.com
+  env:
+    VITE_KEYCLOAK_URL: ""
+    VITE_KEYCLOAK_REALM: "eu-jap-hack"
+    VITE_API_BASE_URL: ""
   resources:
     requests:
       cpu: 50m
@@ -167,6 +191,7 @@ portalCompany:
 waltidWalletApi:
   replicaCount: 1
   image:
+    registry: docker.io
     repository: waltid/wallet-api
     tag: latest
     pullPolicy: IfNotPresent
@@ -185,6 +210,7 @@ waltidWalletApi:
 waltidIssuerApi:
   replicaCount: 1
   image:
+    registry: docker.io
     repository: waltid/issuer-api
     tag: latest
     pullPolicy: IfNotPresent
@@ -203,6 +229,7 @@ waltidIssuerApi:
 waltidVerifierApi:
   replicaCount: 1
   image:
+    registry: docker.io
     repository: waltid/verifier-api
     tag: latest
     pullPolicy: IfNotPresent

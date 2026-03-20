@@ -36,6 +36,13 @@ spec:
         - name: {{ $name }}
           image: {{ include "eu-jap-hack.image" (dict "global" $.Values.global "image" $val.image) }}
           imagePullPolicy: {{ $val.image.pullPolicy }}
+          env:
+            - name: VITE_KEYCLOAK_URL
+              value: {{ $val.env.VITE_KEYCLOAK_URL | quote }}
+            - name: VITE_KEYCLOAK_REALM
+              value: {{ $val.env.VITE_KEYCLOAK_REALM | quote }}
+            - name: VITE_API_BASE_URL
+              value: {{ $val.env.VITE_API_BASE_URL | quote }}
           ports:
             - containerPort: 80
               protocol: TCP
