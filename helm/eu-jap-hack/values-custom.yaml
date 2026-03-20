@@ -170,8 +170,9 @@ portalCompany:
 waltidWalletApi:
   replicaCount: 1
   image:
+    registry: docker.io
     repository: waltid/wallet-api
-    tag: "1.0.1"
+    tag: "latest"
     pullPolicy: IfNotPresent
   service:
     port: 7001
@@ -188,8 +189,9 @@ waltidWalletApi:
 waltidIssuerApi:
   replicaCount: 1
   image:
+    registry: docker.io
     repository: waltid/issuer-api
-    tag: "1.0.1"
+    tag: "latest"
     pullPolicy: IfNotPresent
   service:
     port: 7002
@@ -206,8 +208,9 @@ waltidIssuerApi:
 waltidVerifierApi:
   replicaCount: 1
   image:
+    registry: docker.io
     repository: waltid/verifier-api
-    tag: "1.0.1"
+    tag: "latest"
     pullPolicy: IfNotPresent
   service:
     port: 7003

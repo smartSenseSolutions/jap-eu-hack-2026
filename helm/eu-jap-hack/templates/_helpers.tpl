@@ -42,7 +42,9 @@ app.kubernetes.io/instance: {{ .release }}
 Image helper
 */}}
 {{- define "eu-jap-hack.image" -}}
-{{- if .global.imageRegistry -}}
+{{- if .image.registry -}}
+{{ .image.registry }}/{{ .image.repository }}:{{ .image.tag }}
+{{- else if .global.imageRegistry -}}
 {{ .global.imageRegistry }}/{{ .image.repository }}:{{ .image.tag }}
 {{- else -}}
 {{ .image.repository }}:{{ .image.tag }}
