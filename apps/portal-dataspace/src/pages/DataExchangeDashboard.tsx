@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { getApiBase } from '@eu-jap-hack/auth'
 
-const API = 'http://localhost:8000/api'
+const API = getApiBase()
 
 interface EdcStep {
   step: number

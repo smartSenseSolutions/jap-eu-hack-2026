@@ -13,7 +13,7 @@ export function getVCBaseUrl(): string {
     // domain is URL-encoded for DID (e.g. "abc.ngrok-free.app"), use https
     return `https://${domain.replace(/%3A/g, ':')}`;
   }
-  return 'http://localhost:8000';
+  return process.env.APP_BASE_URL || 'http://localhost:8000';
 }
 
 export function buildLegalParticipantVC(org: OrgCredentialRecord, did?: string): LegalParticipantVC {

@@ -1,3 +1,5 @@
+import { getApiBase } from '@eu-jap-hack/auth'
+
 interface Props {
   consent: Record<string, unknown>
   onApprove: () => void
@@ -8,7 +10,7 @@ export default function ConsentModal({ consent, onApprove, onDeny }: Props) {
   const dataRequested = consent.dataRequested as string[] | undefined
   const dataExcluded = consent.dataExcluded as string[] | undefined
   const vin = consent.vin as string
-  const carId = `http://localhost:8000/api/vehicle-registry/vehicles/${vin}`
+  const carId = `${getApiBase()}/vehicle-registry/vehicles/${vin}`
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
