@@ -1,9 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom'
+import { getApiBase } from '@eu-jap-hack/auth'
 
 export default function BuySuccess() {
   const { vin } = useParams()
   const navigate = useNavigate()
-  const carId = `http://localhost:8000/api/vehicle-registry/vehicles/${vin}`
+  const carId = `${getApiBase()}/vehicle-registry/vehicles/${vin}`
 
   return (
     <div className="max-w-md mx-auto mt-24 px-6 text-center">

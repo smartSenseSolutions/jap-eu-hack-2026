@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAuthUser, createAuthAxios } from '@eu-jap-hack/auth'
+import { useAuthUser, createAuthAxios, getApiBase } from '@eu-jap-hack/auth'
 import { calculatePremium } from '../lib/premiumCalculator'
 
 interface StepData {
@@ -172,7 +172,7 @@ export default function QuotePage() {
     async function negotiate() {
       try {
         // Use SSE streaming for real-time step updates
-        const response = await fetch('http://localhost:8000/api/edc/negotiate', {
+        const response = await fetch(`${getApiBase()}/edc/negotiate`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

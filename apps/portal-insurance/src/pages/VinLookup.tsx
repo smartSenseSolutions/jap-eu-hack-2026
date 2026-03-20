@@ -128,7 +128,7 @@ export default function VinLookup() {
           type="text"
           value={carId}
           onChange={e => { setCarId(e.target.value); setError(''); setResolution(null); setPublicSummary(null) }}
-          placeholder="e.g. http://localhost:8000/api/vehicle-registry/vehicles/TATA2024NEXONEV001"
+          placeholder={`e.g. ${API_BASE}/vehicle-registry/vehicles/TATA2024NEXONEV001`}
           className="w-full border border-[#E5EAF0] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#FBBC05] focus:ring-1 focus:ring-[#FBBC05]/20 transition-all"
           onKeyDown={e => e.key === 'Enter' && handleResolve()}
         />
@@ -147,8 +147,8 @@ export default function VinLookup() {
           <p className="text-[10px] text-[#9AA0A6] uppercase tracking-wide mb-2">Demo Car IDs</p>
           <div className="space-y-1">
             {['TATA2024NEXONEV001', 'TATA2024HARRIER001', 'TATA2024PUNCHEV001'].map(v => (
-              <button key={v} onClick={() => setCarId(`http://localhost:8000/api/vehicle-registry/vehicles/${v}`)} className="block text-[11px] font-mono text-[#9AA0A6] hover:text-[#FBBC05] transition-colors truncate max-w-full">
-                {`http://localhost:8000/api/vehicle-registry/vehicles/${v}`}
+              <button key={v} onClick={() => setCarId(`${API_BASE}/vehicle-registry/vehicles/${v}`)} className="block text-[11px] font-mono text-[#9AA0A6] hover:text-[#FBBC05] transition-colors truncate max-w-full">
+                {`${API_BASE}/vehicle-registry/vehicles/${v}`}
               </button>
             ))}
           </div>

@@ -557,7 +557,7 @@ export function buildOwnershipVC(
       model: carData.model,
       year: carData.year,
       variant: carData.variant,
-      vehicleRegistryEndpoint: `http://localhost:8000/api/vehicle-registry/vehicles/${vin}`,
+      vehicleRegistryEndpoint: `${process.env.APP_BASE_URL || 'http://localhost:8000'}/api/vehicle-registry/vehicles/${vin}`,
       issuedBy: issuerDid,
     },
   };

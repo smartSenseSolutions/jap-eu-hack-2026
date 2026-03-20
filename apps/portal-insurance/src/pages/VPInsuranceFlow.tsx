@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { useAuthUser, createAuthAxios } from '@eu-jap-hack/auth'
+import { useAuthUser, createAuthAxios, getApiBase } from '@eu-jap-hack/auth'
 import { calculatePremium } from '../lib/premiumCalculator'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = getApiBase()
 
 type Screen = 'start' | 'present' | 'verify' | 'quote'
 
@@ -282,7 +282,7 @@ export default function VPInsuranceFlow() {
             type="text"
             value={vinInput}
             onChange={e => { setVinInput(e.target.value); setRequestError('') }}
-            placeholder="e.g. TATA2024NEXONEV001 or http://localhost:8000/api/vehicle-registry/vehicles/TATA2024NEXONEV001"
+            placeholder={`e.g. TATA2024NEXONEV001 or ${API_BASE}/vehicle-registry/vehicles/TATA2024NEXONEV001`}
             className="w-full border border-[#E5EAF0] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#FBBC05] focus:ring-1 focus:ring-[#FBBC05]/20 transition-all"
             onKeyDown={e => e.key === 'Enter' && handleRequestProof()}
           />
@@ -301,8 +301,8 @@ export default function VPInsuranceFlow() {
             <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-2">Demo Car IDs</p>
             <div className="space-y-1">
               {['TATA2024NEXONEV001', 'TATA2024HARRIER001', 'TATA2024PUNCHEV001'].map(v => (
-                <button key={v} onClick={() => setVinInput(`http://localhost:8000/api/vehicle-registry/vehicles/${v}`)} className="block text-[11px] font-mono text-gray-400 hover:text-[#FBBC05] transition-colors truncate max-w-full">
-                  {`http://localhost:8000/api/vehicle-registry/vehicles/${v}`}
+                <button key={v} onClick={() => setVinInput(`${API_BASE}/vehicle-registry/vehicles/${v}`)} className="block text-[11px] font-mono text-gray-400 hover:text-[#FBBC05] transition-colors truncate max-w-full">
+                  {`${API_BASE}/vehicle-registry/vehicles/${v}`}
                 </button>
               ))}
             </div>

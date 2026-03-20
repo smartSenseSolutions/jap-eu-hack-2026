@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { useAuthUser } from '@eu-jap-hack/auth'
+import { useAuthUser, getApiBase } from '@eu-jap-hack/auth'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = getApiBase()
 
 type Screen = 'loading' | 'review' | 'generating' | 'success' | 'declined' | 'error'
 

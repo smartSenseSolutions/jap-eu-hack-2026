@@ -158,7 +158,7 @@ function WalletHome() {
             {ownershipCreds.map(cred => {
               const subject = cred.credentialSubject as Record<string, unknown>
               const vin = subject?.vin as string
-              const carId = `http://localhost:8000/api/vehicle-registry/vehicles/${vin}`
+              const carId = `${getApiBase()}/vehicle-registry/vehicles/${vin}`
               return (
                 <CredentialCard
                   key={cred.id as string}
@@ -239,7 +239,7 @@ function WalletHome() {
                   }`}>{c.status as string}</span>
                 </div>
                 <p className="text-[9px] text-blue-500 font-mono mt-1 ml-5 break-all">
-                  {`http://localhost:8000/api/vehicle-registry/vehicles/${c.vin as string}`}
+                  {`${getApiBase()}/vehicle-registry/vehicles/${c.vin as string}`}
                 </p>
                 {(c.dataRequested as string[])?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1.5 ml-5">
