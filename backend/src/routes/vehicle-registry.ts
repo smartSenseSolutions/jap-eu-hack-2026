@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import db from '../db';
+import prisma from '../db';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
@@ -201,35 +201,37 @@ function buildPolicies(car: any) {
   };
 }
 
-function logAudit(vin: string, action: string, actor: string, details?: Record<string, unknown>) {
+async function logAudit(vin: string, action: string, actor: string, details?: Record<string, unknown>) {
   const event = {
     id: uuidv4(),
     vin,
     action,
     actor,
-    timestamp: new Date().toISOString(),
-    details: details || {},
+    timestamp: new Date(),
+    details: (details || {}) as any,
   };
-  db.get('vehicle_audit_log').push(event).write();
+  await prisma.vehicleAuditLog.create({ data: event });
   return event;
 }
 
-function checkAccessGrant(vin: string, requesterId: string): boolean {
-  const grant = db.get('access_sessions').find((s: any) =>
-    s.vin === vin &&
-    s.requesterId === requesterId &&
-    s.status === 'active' &&
-    new Date(s.expiresAt) > new Date()
-  ).value();
+async function checkAccessGrant(vin: string, requesterId: string): Promise<boolean> {
+  const grant = await prisma.accessSession.findFirst({
+    where: {
+      vin,
+      requesterId,
+      status: 'active',
+      expiresAt: { gt: new Date() },
+    },
+  });
   return !!grant;
 }
 
 // --------------- PUBLIC DISCOVERY ---------------
 
 // Well-known vehicle registry endpoint
-router.get('/well-known', (_req, res) => {
-  const cars = db.get('cars').value() || [];
-  const orgCred = db.get('org_credentials').find({ companyId: 'company-tata-001' }).value();
+router.get('/well-known', async (_req, res) => {
+  const cars = await prisma.car.findMany();
+  const orgCred = await prisma.orgCredential.findFirst({ where: { companyId: 'company-tata-001' } });
   res.json({
     '@context': 'https://w3id.org/catenax/vehicle-registry/v1',
     registryId: 'tata-motors-vehicle-registry',
@@ -258,9 +260,9 @@ router.get('/well-known', (_req, res) => {
 });
 
 // List all vehicles in registry
-router.get('/vehicles', (_req, res) => {
-  const cars = db.get('cars').value() || [];
-  const orgCred = db.get('org_credentials').find({ companyId: 'company-tata-001' }).value();
+router.get('/vehicles', async (_req, res) => {
+  const cars = await prisma.car.findMany();
+  const orgCred = await prisma.orgCredential.findFirst({ where: { companyId: 'company-tata-001' } });
   res.json(cars.map((c: any) => ({
     carId: buildCarId(c.vin),
     vin: c.vin,
@@ -276,49 +278,52 @@ router.get('/vehicles', (_req, res) => {
 });
 
 // Resolve Car ID — the core resolution endpoint
-router.get('/vehicles/:vin', (req, res) => {
-  const car = db.get('cars').find({ vin: req.params.vin }).value();
+router.get('/vehicles/:vin', async (req, res) => {
+  const car = await prisma.car.findUnique({ where: { vin: req.params.vin } });
   if (!car) return res.status(404).json({ error: 'Vehicle not found in registry' });
 
-  const orgCred = db.get('org_credentials').find({ companyId: 'company-tata-001' }).value();
+  const orgCred = await prisma.orgCredential.findFirst({ where: { companyId: 'company-tata-001' } });
   const doc = buildResolutionDocument(car, orgCred);
 
-  logAudit(car.vin, 'resolve', req.query.requester as string || 'anonymous');
+  await logAudit(car.vin, 'resolve', req.query.requester as string || 'anonymous');
   res.json(doc);
 });
 
 // Public summary — no auth needed
-router.get('/vehicles/:vin/public-summary', (req, res) => {
-  const car = db.get('cars').find({ vin: req.params.vin }).value();
+router.get('/vehicles/:vin/public-summary', async (req, res) => {
+  const car = await prisma.car.findUnique({ where: { vin: req.params.vin } });
   if (!car) return res.status(404).json({ error: 'Vehicle not found in registry' });
 
-  logAudit(car.vin, 'public_summary_viewed', req.query.requester as string || 'anonymous');
+  await logAudit(car.vin, 'public_summary_viewed', req.query.requester as string || 'anonymous');
   res.json(buildPublicSummary(car));
 });
 
 // Policies — data access rules
-router.get('/vehicles/:vin/policies', (req, res) => {
-  const car = db.get('cars').find({ vin: req.params.vin }).value();
+router.get('/vehicles/:vin/policies', async (req, res) => {
+  const car = await prisma.car.findUnique({ where: { vin: req.params.vin } });
   if (!car) return res.status(404).json({ error: 'Vehicle not found in registry' });
 
   res.json(buildPolicies(car));
 });
 
 // Verification status
-router.get('/vehicles/:vin/verification-status', (req, res) => {
-  const car = db.get('cars').find({ vin: req.params.vin }).value();
+router.get('/vehicles/:vin/verification-status', async (req, res) => {
+  const car = await prisma.car.findUnique({ where: { vin: req.params.vin } });
   if (!car) return res.status(404).json({ error: 'Vehicle not found in registry' });
 
-  const orgCred = db.get('org_credentials').find({ companyId: 'company-tata-001' }).value();
-  const manufacturerCred = db.get('credentials').find({ id: car.manufacturerCredentialId }).value();
+  const orgCred = await prisma.orgCredential.findFirst({ where: { companyId: 'company-tata-001' } });
+  const manufacturerCred = car.manufacturerCredentialId
+    ? await prisma.credential.findUnique({ where: { id: car.manufacturerCredentialId } })
+    : null;
 
+  const complianceResult = orgCred?.complianceResult as Record<string, any> | null;
   res.json({
     carId: buildCarId(car.vin),
     vin: car.vin,
     manufacturer: {
       name: 'TATA Motors Limited',
       orgCredentialStatus: orgCred?.verificationStatus || 'unverified',
-      gaiaxCompliant: orgCred?.complianceResult?.status === 'compliant',
+      gaiaxCompliant: complianceResult?.status === 'compliant',
       credentialId: orgCred?.id,
     },
     vehicleCredentials: {
@@ -330,18 +335,21 @@ router.get('/vehicles/:vin/verification-status', (req, res) => {
 });
 
 // Audit log
-router.get('/vehicles/:vin/audit-log', (req, res) => {
-  const car = db.get('cars').find({ vin: req.params.vin }).value();
+router.get('/vehicles/:vin/audit-log', async (req, res) => {
+  const car = await prisma.car.findUnique({ where: { vin: req.params.vin } });
   if (!car) return res.status(404).json({ error: 'Vehicle not found in registry' });
 
-  const logs = db.get('vehicle_audit_log').filter({ vin: req.params.vin }).sortBy('timestamp').reverse().value();
+  const logs = await prisma.vehicleAuditLog.findMany({
+    where: { vin: req.params.vin },
+    orderBy: { timestamp: 'desc' },
+  });
   res.json(logs);
 });
 
 // --------------- CONSENT-PROTECTED ENDPOINTS ---------------
 
 // Middleware: check access grant for protected endpoints
-function requireAccessGrant(req: any, res: any, next: any) {
+async function requireAccessGrant(req: any, res: any, next: any) {
   const vin = req.params.vin;
   const requesterId = req.query.requesterId || req.headers['x-requester-id'];
 
@@ -353,7 +361,7 @@ function requireAccessGrant(req: any, res: any, next: any) {
     });
   }
 
-  if (!checkAccessGrant(vin, requesterId)) {
+  if (!(await checkAccessGrant(vin, requesterId))) {
     return res.status(403).json({
       error: 'No active access grant',
       message: 'You need an approved access grant to access this data. Request consent from the vehicle owner.',
@@ -362,13 +370,13 @@ function requireAccessGrant(req: any, res: any, next: any) {
     });
   }
 
-  logAudit(vin, 'protected_data_accessed', requesterId, { endpoint: req.path });
+  await logAudit(vin, 'protected_data_accessed', requesterId, { endpoint: req.path });
   next();
 }
 
 // Full DPP — protected
-router.get('/vehicles/:vin/dpp', requireAccessGrant, (req, res) => {
-  const car = db.get('cars').find({ vin: req.params.vin }).value();
+router.get('/vehicles/:vin/dpp', requireAccessGrant, async (req, res) => {
+  const car = await prisma.car.findUnique({ where: { vin: req.params.vin } });
   if (!car) return res.status(404).json({ error: 'Vehicle not found' });
 
   res.json({
@@ -381,28 +389,30 @@ router.get('/vehicles/:vin/dpp', requireAccessGrant, (req, res) => {
 });
 
 // Credentials — protected
-router.get('/vehicles/:vin/credentials', requireAccessGrant, (req, res) => {
-  const car = db.get('cars').find({ vin: req.params.vin }).value();
+router.get('/vehicles/:vin/credentials', requireAccessGrant, async (req, res) => {
+  const car = await prisma.car.findUnique({ where: { vin: req.params.vin } });
   if (!car) return res.status(404).json({ error: 'Vehicle not found' });
 
   const creds: any[] = [];
 
   // Manufacturer VC
-  const mfgCred = db.get('credentials').find({ id: car.manufacturerCredentialId }).value();
+  const mfgCred = car.manufacturerCredentialId
+    ? await prisma.credential.findUnique({ where: { id: car.manufacturerCredentialId } })
+    : null;
   if (mfgCred) creds.push({ ...mfgCred, role: 'manufacturer' });
 
   // Ownership VC
   if (car.ownerId) {
-    const ownerCreds = db.get('credentials').filter({ type: 'OwnershipVC' }).value()
-      .filter((c: any) => c.credentialSubject?.vin === car.vin);
-    ownerCreds.forEach((c: any) => creds.push({ ...c, role: 'ownership' }));
+    const ownerCreds = await prisma.credential.findMany({ where: { type: 'OwnershipVC' } });
+    const filtered = ownerCreds.filter((c: any) => c.credentialSubject?.vin === car.vin);
+    filtered.forEach((c: any) => creds.push({ ...c, role: 'ownership' }));
   }
 
   // Insurance VC
-  const insurancePolicies = db.get('insurance_policies').filter({ vin: car.vin }).value();
+  const insurancePolicies = await prisma.insurancePolicy.findMany({ where: { vin: car.vin } });
   for (const policy of insurancePolicies) {
     if (policy.credentialId) {
-      const ic = db.get('credentials').find({ id: policy.credentialId }).value();
+      const ic = await prisma.credential.findUnique({ where: { id: policy.credentialId } });
       if (ic) creds.push({ ...ic, role: 'insurance' });
     }
   }
@@ -411,11 +421,11 @@ router.get('/vehicles/:vin/credentials', requireAccessGrant, (req, res) => {
 });
 
 // Insurance view — protected, optimized for insurers
-router.get('/vehicles/:vin/insurance-view', requireAccessGrant, (req, res) => {
-  const car = db.get('cars').find({ vin: req.params.vin }).value();
+router.get('/vehicles/:vin/insurance-view', requireAccessGrant, async (req, res) => {
+  const car = await prisma.car.findUnique({ where: { vin: req.params.vin } });
   if (!car) return res.status(404).json({ error: 'Vehicle not found' });
 
-  const dpp = car.dpp || {};
+  const dpp = (car.dpp || {}) as Record<string, any>;
   res.json({
     carId: buildCarId(car.vin),
     vin: car.vin,
@@ -435,16 +445,16 @@ router.get('/vehicles/:vin/insurance-view', requireAccessGrant, (req, res) => {
 });
 
 // Ownership proof — protected
-router.get('/vehicles/:vin/ownership-proof', requireAccessGrant, (req, res) => {
-  const car = db.get('cars').find({ vin: req.params.vin }).value();
+router.get('/vehicles/:vin/ownership-proof', requireAccessGrant, async (req, res) => {
+  const car = await prisma.car.findUnique({ where: { vin: req.params.vin } });
   if (!car) return res.status(404).json({ error: 'Vehicle not found' });
 
   if (!car.ownerId) {
     return res.json({ carId: buildCarId(car.vin), owned: false });
   }
 
-  const ownerCred = db.get('credentials').filter({ type: 'OwnershipVC' }).value()
-    .find((c: any) => c.credentialSubject?.vin === car.vin);
+  const ownerCreds = await prisma.credential.findMany({ where: { type: 'OwnershipVC' } });
+  const ownerCred = ownerCreds.find((c: any) => c.credentialSubject?.vin === car.vin);
 
   res.json({
     carId: buildCarId(car.vin),
@@ -458,7 +468,7 @@ router.get('/vehicles/:vin/ownership-proof', requireAccessGrant, (req, res) => {
 // --------------- ACCESS SESSION MANAGEMENT ---------------
 
 // Create access session when consent is approved (called internally)
-router.post('/access-sessions', authenticate, (req, res) => {
+router.post('/access-sessions', authenticate, async (req, res) => {
   const { vin, requesterId, requesterName, consentId, durationMinutes } = req.body;
 
   const session = {
@@ -472,23 +482,21 @@ router.post('/access-sessions', authenticate, (req, res) => {
     expiresAt: new Date(Date.now() + (durationMinutes || 60) * 60 * 1000).toISOString(),
   };
 
-  db.get('access_sessions').push(session).write();
-  logAudit(vin, 'access_session_created', requesterId, { sessionId: session.id, consentId });
+  await prisma.accessSession.create({ data: session });
+  await logAudit(vin, 'access_session_created', requesterId, { sessionId: session.id, consentId });
 
   res.json(session);
 });
 
 // List active sessions for a vehicle
-router.get('/vehicles/:vin/access-sessions', (req, res) => {
-  const sessions = db.get('access_sessions')
-    .filter({ vin: req.params.vin })
-    .value()
-    .map((s: any) => ({
-      ...s,
-      isExpired: new Date(s.expiresAt) < new Date(),
-      status: new Date(s.expiresAt) < new Date() ? 'expired' : s.status,
-    }));
-  res.json(sessions);
+router.get('/vehicles/:vin/access-sessions', async (req, res) => {
+  const sessions = await prisma.accessSession.findMany({ where: { vin: req.params.vin } });
+  const mapped = sessions.map((s: any) => ({
+    ...s,
+    isExpired: new Date(s.expiresAt) < new Date(),
+    status: new Date(s.expiresAt) < new Date() ? 'expired' : s.status,
+  }));
+  res.json(mapped);
 });
 
 // --------------- VP-VALIDATED ENDPOINTS ---------------
@@ -502,7 +510,7 @@ import { parseVP, extractCredentials, validateVP } from '../services/vp-processo
  * VP-validated endpoint for insurance data.
  * Digit Insurance calls this with the holder's VP.
  */
-router.post('/vehicles/:vin/insurance-data-vp', (req, res) => {
+router.post('/vehicles/:vin/insurance-data-vp', async (req, res) => {
   const { vpToken, requestId, verifierDid } = req.body;
   const vin = req.params.vin;
 
@@ -510,7 +518,7 @@ router.post('/vehicles/:vin/insurance-data-vp', (req, res) => {
     return res.status(400).json({ error: 'vpToken is required' });
   }
 
-  const car = db.get('cars').find({ vin }).value();
+  const car = await prisma.car.findUnique({ where: { vin } });
   if (!car) return res.status(404).json({ error: 'Vehicle not found' });
 
   // Step 1: Parse VP
@@ -518,7 +526,7 @@ router.post('/vehicles/:vin/insurance-data-vp', (req, res) => {
   try {
     vp = parseVP(vpToken);
   } catch (err: any) {
-    logAudit(vin, 'vp_validation_failed', verifierDid || 'unknown', { error: err.message, stage: 'parse' });
+    await logAudit(vin, 'vp_validation_failed', verifierDid || 'unknown', { error: err.message, stage: 'parse' });
     return res.status(400).json({ error: 'Invalid VP format', details: err.message });
   }
 
@@ -527,7 +535,7 @@ router.post('/vehicles/:vin/insurance-data-vp', (req, res) => {
   const ownershipCred = credentials.find(c => c.type.includes('OwnershipVC'));
 
   if (!ownershipCred) {
-    logAudit(vin, 'vp_validation_failed', verifierDid || 'unknown', { error: 'No OwnershipVC in VP' });
+    await logAudit(vin, 'vp_validation_failed', verifierDid || 'unknown', { error: 'No OwnershipVC in VP' });
     return res.status(403).json({ error: 'VP does not contain an OwnershipVC' });
   }
 
@@ -539,7 +547,7 @@ router.post('/vehicles/:vin/insurance-data-vp', (req, res) => {
   });
 
   if (!validation.valid) {
-    logAudit(vin, 'vp_validation_failed', verifierDid || 'unknown', { errors: validation.errors });
+    await logAudit(vin, 'vp_validation_failed', verifierDid || 'unknown', { errors: validation.errors });
     return res.status(403).json({
       error: 'VP validation failed',
       details: validation.errors,
@@ -552,7 +560,7 @@ router.post('/vehicles/:vin/insurance-data-vp', (req, res) => {
     const credOwnerId = ownershipCred.subject.ownerId
       || (ownershipCred.subject.ownerDid as string)?.replace('did:smartsense:', '');
     if (credOwnerId && credOwnerId !== car.ownerId) {
-      logAudit(vin, 'vp_validation_failed', verifierDid || 'unknown', {
+      await logAudit(vin, 'vp_validation_failed', verifierDid || 'unknown', {
         error: 'Owner mismatch',
         credOwner: credOwnerId,
         carOwner: car.ownerId,
@@ -564,7 +572,7 @@ router.post('/vehicles/:vin/insurance-data-vp', (req, res) => {
   }
 
   // Step 5: VP is valid — return insurance data
-  logAudit(vin, 'vp_validated_insurance_data_shared', vp.holder, {
+  await logAudit(vin, 'vp_validated_insurance_data_shared', vp.holder, {
     requestId,
     verifierDid,
     credentialType: 'OwnershipVC',
@@ -603,13 +611,13 @@ router.post('/vehicles/:vin/insurance-data-vp', (req, res) => {
  * POST /vehicles/:vin/dpp-vp
  * VP-validated DPP endpoint
  */
-router.post('/vehicles/:vin/dpp-vp', (req, res) => {
+router.post('/vehicles/:vin/dpp-vp', async (req, res) => {
   const { vpToken, verifierDid } = req.body;
   const vin = req.params.vin;
 
   if (!vpToken) return res.status(400).json({ error: 'vpToken is required' });
 
-  const car = db.get('cars').find({ vin }).value();
+  const car = await prisma.car.findUnique({ where: { vin } });
   if (!car) return res.status(404).json({ error: 'Vehicle not found' });
 
   let vp;
@@ -628,7 +636,7 @@ router.post('/vehicles/:vin/dpp-vp', (req, res) => {
     return res.status(403).json({ error: 'VP validation failed', details: validation.errors });
   }
 
-  logAudit(vin, 'vp_validated_dpp_shared', vp.holder, { verifierDid });
+  await logAudit(vin, 'vp_validated_dpp_shared', vp.holder, { verifierDid });
 
   res.json({
     carId: buildCarId(car.vin),

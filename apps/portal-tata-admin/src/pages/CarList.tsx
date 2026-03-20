@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
+import { getApiBase } from '@eu-jap-hack/auth'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = getApiBase()
 
 interface Car {
   id: string

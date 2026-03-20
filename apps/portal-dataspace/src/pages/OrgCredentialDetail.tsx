@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAuthUser, createAuthAxios } from '@eu-jap-hack/auth'
+import { useAuthUser, createAuthAxios, getApiBase } from '@eu-jap-hack/auth'
 
-const API = 'http://localhost:8000/api'
+const API = getApiBase()
 
 interface OrgCred {
   id: string; legalName: string; verificationStatus: string

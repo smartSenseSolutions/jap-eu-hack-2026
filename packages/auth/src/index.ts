@@ -1,6 +1,4 @@
-export const KEYCLOAK_URL = 'http://localhost:8080';
-export const KEYCLOAK_REALM = 'eu-jap-hack';
-export const KEYCLOAK_AUTHORITY = `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}`;
+export { getKeycloakUrl, getKeycloakRealm, getKeycloakAuthority, getApiBase } from './config';
 
 export const ROLES = {
   ADMIN: 'admin',

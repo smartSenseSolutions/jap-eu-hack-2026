@@ -1,7 +1,7 @@
 import React from 'react';
 import { AuthProvider as OidcAuthProvider } from 'react-oidc-context';
 import { WebStorageStateStore } from 'oidc-client-ts';
-import { KEYCLOAK_AUTHORITY } from './index';
+import { getKeycloakAuthority } from './config';
 
 interface Props {
   clientId: string;
@@ -10,7 +10,7 @@ interface Props {
 
 export function AuthProvider({ clientId, children }: Props) {
   const oidcConfig = {
-    authority: KEYCLOAK_AUTHORITY,
+    authority: getKeycloakAuthority(),
     client_id: clientId,
     redirect_uri: window.location.origin + '/',
     post_logout_redirect_uri: window.location.origin + '/',

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
+import { getApiBase } from '@eu-jap-hack/auth'
 
-const API_BASE = 'http://localhost:8000/api'
+const API_BASE = getApiBase()
 
 export function useConsentPolling(userId: string) {
   const [pendingConsent, setPendingConsent] = useState<Record<string, unknown> | null>(null)

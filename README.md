@@ -22,6 +22,7 @@ A multi-portal decentralized dataspace platform for vehicle lifecycle management
 - [Data Model](#data-model)
 - [API Reference](#api-reference)
 - [Configuration](#configuration)
+- [Docker & Deployment](#docker--deployment)
 - [Project Structure](#project-structure)
 
 ---
@@ -46,7 +47,7 @@ A multi-portal decentralized dataspace platform for vehicle lifecycle management
                                          │
                               ┌──────────┴──────────┐
                               │  Backend API (:8000) │
-                              │  Express + TypeScript│
+                              │  Express + Prisma    │
                               └──┬───┬───┬───┬───┬──┘
                                  │   │   │   │   │
               ┌──────────────────┘   │   │   │   └──────────────────┐
@@ -58,13 +59,13 @@ A multi-portal decentralized dataspace platform for vehicle lifecycle management
      └────────────────┘  └────────────┘  │  │ SSE stream)│  │  VC Builder)  │
                                          │  └────────────┘  └───────┬───────┘
                                          │                          │
-                               ┌─────────┴─┐              ┌────────┴────────┐
-                               │  LowDB    │              │  External APIs   │
-                               │ data/db.json              │  - GXDCH Notary │
-                               └───────────┘              │  - GXDCH Comply │
-                                                          │  - walt.id      │
-                                                          │  - EDC Tractus-X│
-                                                          └─────────────────┘
+                               ┌─────────┴──┐             ┌────────┴────────┐
+                               │ PostgreSQL  │             │  External APIs   │
+                               │   :5432     │             │  - GXDCH Notary │
+                               └─────────────┘             │  - GXDCH Comply │
+                                                           │  - walt.id      │
+                                                           │  - EDC Tractus-X│
+                                                           └─────────────────┘
 ```
 
 **Key Participants:**
@@ -80,35 +81,66 @@ A multi-portal decentralized dataspace platform for vehicle lifecycle management
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS, React Router |
-| Backend | Node.js, Express, TypeScript, ts-node-dev |
-| Database | LowDB (file-based JSON at `backend/data/db.json`) |
+| Backend | Node.js, Express, TypeScript, Prisma ORM |
+| Database | PostgreSQL 16 |
 | Auth | Keycloak 26.0, OIDC via `react-oidc-context` |
 | Crypto | `jsonwebtoken` (RS256), `crypto` (RSA-2048 keypairs) |
 | Credentials | walt.id (OID4VCI issuance), W3C VC Data Model v1/v2 |
 | Dataspace | Eclipse Dataspace Connector (Tractus-X), ODRL policies |
 | Trust | Gaia-X GXDCH (Notary + Compliance), did:web resolution |
-| Infra | Docker Compose (Keycloak, walt.id), ngrok (public DID hosting) |
+| Infra | Docker, Helm, HAProxy Ingress, cert-manager (Let's Encrypt) |
+
+---
+
+## Applications
+
+| Application | Port | Description |
+|---|---|---|
+| **Backend API** | 8000 | Express.js API with Prisma ORM, Gaia-X compliance, EDC integration |
+| **Portal Dataspace** | 3001 | Organization registry, Gaia-X credential management |
+| **Portal TATA Admin** | 3002 | Fleet management, vehicle DPP creation, inventory |
+| **Portal TATA Public** | 3003 | Digital showroom, car marketplace for buyers |
+| **Portal Wallet** | 3004 | Digital identity wallet, credential storage, DPP viewer |
+| **Portal Insurance** | 3005 | Smart vehicle coverage, consent-based data access |
+| **Portal Company** | 3006 | Company directory, organization credential viewer |
+| **Keycloak** | 8080 | OAuth2/OIDC identity provider |
+| **Walt.id Wallet API** | 7001 | SSI wallet for Verifiable Credentials |
+| **Walt.id Issuer API** | 7002 | OID4VCI credential issuance |
+| **Walt.id Verifier API** | 7003 | OID4VP credential verification |
 
 ---
 
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+, npm 9+
-- Docker & Docker Compose (for Keycloak + walt.id)
+
+- Node.js 20+
+- Docker & Docker Compose
+- PostgreSQL 16 (or use Docker)
 - ngrok (for Gaia-X did:web resolution and EDC callbacks)
 
-### 1. Install dependencies
+### 1. Start infrastructure
+
+```bash
+docker compose up keycloak waltid-wallet-api waltid-issuer-api waltid-verifier-api postgres -d
+```
+
+### 2. Install dependencies
+
 ```bash
 npm install
 ```
 
-### 2. Start external services
+### 3. Setup database
+
 ```bash
-docker compose up -d    # Keycloak (:8080), walt.id (:7001-7003)
+cd backend
+npx prisma migrate dev
+npx prisma db seed
 ```
 
-### 3. Start all services
+### 4. Start all services
+
 ```bash
 npm run dev             # Starts backend + all 6 portals concurrently
 ```
@@ -124,7 +156,7 @@ npm run dev:insurance   # Insurance Portal on :3005
 npm run dev:company     # Company Registry on :3006
 ```
 
-### 4. Login credentials
+### 5. Login credentials
 
 | Portal | Port | Role | Username | Password |
 |--------|------|------|----------|----------|
@@ -193,7 +225,7 @@ Public Showroom (:3003)                  Backend (:8000)                    Wall
 
 **What gets created:**
 - `OwnershipVC` credential in `credentials` table
-- Entry in `wallet[userId].credentialIds`
+- Entry in `wallet_credentials` join table
 - `purchase` record in `purchases` table
 - Car `status` set to `sold`, `ownerId` set to buyer
 
@@ -464,8 +496,8 @@ Insurance Portal         Backend (:8000)              Consumer EDC              
 ```bash
 EDC_CONSUMER_MANAGEMENT_URL=https://consumer-controlplane.example.com/management
 EDC_CONSUMER_API_KEY=your-api-key
-EDC_PARTNER_BPN=BPNL00000000024R
-EDC_PARTNER_DSP_URL=https://provider-protocol.example.com/api/v1/dsp
+# Provider DSP URL and BPNL are now discovered dynamically from the issuer DID document
+# DataService entry format: serviceEndpoint = "<DSP_URL>#<BPNL>"
 ```
 
 ---
@@ -729,15 +761,15 @@ resolveDid('did:eu-dataspace:company-tata-001')
 
 ## Data Model
 
-### Database Collections (LowDB — `backend/data/db.json`)
+### Database (PostgreSQL + Prisma ORM)
 
-| Collection | Purpose | Key Fields |
+| Table | Purpose | Key Fields |
 |-----------|---------|------------|
 | `companies` | Registered organizations | id, name, vatId, did, credentialId |
 | `credentials` | All Verifiable Credentials | id, type, issuerId, status, credentialSubject |
 | `cars` | Vehicle records with DPP | vin, make, model, ownerId, status, dpp |
-| `wallet` | User credential wallets | `{ [userId]: { credentialIds: [] } }` |
-| `consent` | Data access consent records | requesterId, userId, vin, status |
+| `wallets` / `wallet_credentials` | User credential wallets | userId, credentialId (join table) |
+| `consents` | Data access consent records | requesterId, userId, vin, status |
 | `purchases` | Vehicle purchase records | userId, vin, credentialId |
 | `insurance_policies` | Issued insurance policies | policyNumber, vin, premium, credentialId |
 | `org_credentials` | Gaia-X org credentials | companyId, vcJwt, verificationStatus, issuedVCs |
@@ -746,6 +778,15 @@ resolveDid('did:eu-dataspace:company-tata-001')
 | `access_sessions` | Active data access sessions (1hr TTL) | vin, requesterId, consentId |
 | `presentation_requests` | OpenID4VP requests | nonce, expectedCredentialTypes, status |
 | `presentation_sessions` | VP verification sessions | requestId, steps[7], vehicleData |
+
+### Migrations & Seeding
+
+```bash
+cd backend
+npx prisma migrate dev        # Create/apply migrations (dev)
+npx prisma migrate deploy     # Apply migrations (production)
+npx prisma db seed             # Seed demo data
+```
 
 ### Credential Types
 
@@ -799,6 +840,9 @@ resolveDid('did:eu-dataspace:company-tata-001')
 ### Environment Variables (`backend/.env`)
 
 ```bash
+# Database
+DATABASE_URL=postgresql://user:pass@localhost:5432/eu_jap_hack
+
 # Auth (set false to bypass Keycloak in dev)
 AUTH_ENABLED=false
 KEYCLOAK_URL=http://localhost:8080
@@ -822,12 +866,94 @@ GAIAX_TIMEOUT=15000
 ENABLE_EDC=true
 EDC_CONSUMER_MANAGEMENT_URL=https://consumer-controlplane.example.com/management
 EDC_CONSUMER_API_KEY=your-api-key
-EDC_PARTNER_BPN=BPNL00000000024R
-EDC_PARTNER_DSP_URL=https://provider-protocol.example.com/api/v1/dsp
+# EDC_PARTNER_BPN and EDC_PARTNER_DSP_URL removed — discovered from issuer DID DataService
 EDC_NEGOTIATION_INITIAL_DELAY_MS=5000
 EDC_NEGOTIATION_POLL_INTERVAL_MS=5000
 EDC_NEGOTIATION_MAX_RETRIES=3
 ```
+
+### Keycloak Roles
+
+| Role | Portal | Description |
+|---|---|---|
+| `admin` | TATA Admin | Fleet management, vehicle creation |
+| `customer` | Public / Wallet | Car purchases, wallet access |
+| `insurance_agent` | Insurance | Policy issuance, consent requests |
+| `company_admin` | Dataspace / Company | Organization registration, Gaia-X verification |
+
+---
+
+## Docker & Deployment
+
+### Build all images
+
+```bash
+./scripts/build-and-push.sh
+```
+
+### Build a single image
+
+```bash
+./scripts/build-and-push.sh backend
+./scripts/build-and-push.sh portal-wallet
+```
+
+### Custom tag
+
+```bash
+IMAGE_TAG=2.0.0 ./scripts/build-and-push.sh
+```
+
+### ECR Repositories
+
+| Repository |
+|---|
+| `public.ecr.aws/smartsensesolutions/eu-jap-hack/backend` |
+| `public.ecr.aws/smartsensesolutions/eu-jap-hack/portal-dataspace` |
+| `public.ecr.aws/smartsensesolutions/eu-jap-hack/portal-tata-admin` |
+| `public.ecr.aws/smartsensesolutions/eu-jap-hack/portal-tata-public` |
+| `public.ecr.aws/smartsensesolutions/eu-jap-hack/portal-wallet` |
+| `public.ecr.aws/smartsensesolutions/eu-jap-hack/portal-insurance` |
+| `public.ecr.aws/smartsensesolutions/eu-jap-hack/portal-company` |
+
+### Kubernetes (Helm)
+
+Helm chart located at `helm/eu-jap-hack/`.
+
+```bash
+helm install eu-jap-hack ./helm/eu-jap-hack -f your-values.yaml
+```
+
+Example values:
+
+```yaml
+global:
+  imageRegistry: "public.ecr.aws/smartsensesolutions"
+
+tls:
+  enabled: true
+  clusterIssuer: letsencrypt-prod
+
+ingressClassName: haproxy
+
+backend:
+  ingress:
+    host: api.yourdomain.com
+  env:
+    DATABASE_URL: "postgresql://user:pass@db-host:5432/eu_jap_hack"
+
+portalDataspace:
+  ingress:
+    host: dataspace.yourdomain.com
+```
+
+Features:
+- HAProxy Ingress with TLS (cert-manager / Let's Encrypt)
+- Per-service ingress with individual TLS certificates
+- ConfigMap-based Walt.id configuration
+- Keycloak realm auto-import
+- Backend secrets for DATABASE_URL
+- No database dependency in chart (external PostgreSQL)
 
 ---
 
@@ -838,8 +964,7 @@ eu-jap-hack-2026/
 ├── backend/
 │   ├── src/
 │   │   ├── index.ts                    # Express server, route mounting, DID doc hosting
-│   │   ├── db.ts                       # LowDB setup, schema defaults
-│   │   ├── seed-data.ts                # Demo data seeding
+│   │   ├── db.ts                       # Prisma client setup
 │   │   ├── middleware/
 │   │   │   └── auth.ts                 # Keycloak JWT verification, role checks
 │   │   ├── routes/
@@ -874,9 +999,13 @@ eu-jap-hack-2026/
 │   │   └── __tests__/
 │   │       ├── vp-processor.test.ts    # VP/VC signing & validation tests
 │   │       └── did-resolver.test.ts    # DID resolution tests
-│   ├── data/
-│   │   └── db.json                     # LowDB JSON database
+│   ├── prisma/
+│   │   ├── schema.prisma               # Database schema
+│   │   ├── migrations/                 # Database migrations
+│   │   └── seed.ts                     # Demo data seeding
 │   ├── .keys/                          # RSA keypairs (generated at runtime)
+│   ├── Dockerfile
+│   ├── docker-entrypoint.sh            # Migrate + seed + start
 │   └── .env                            # Environment configuration
 │
 ├── apps/
@@ -885,12 +1014,16 @@ eu-jap-hack-2026/
 │   ├── portal-tata-public/             # Public showroom (:3003)
 │   ├── portal-wallet/                  # Digital credential wallet (:3004)
 │   ├── portal-insurance/               # Insurance + VP verification (:3005)
-│   └── portal-company/                 # Company directory (:3006)
+│   ├── portal-company/                 # Company directory (:3006)
+│   └── Dockerfile                      # Shared frontend Dockerfile (ARG APP_NAME)
 │
 ├── packages/
 │   ├── auth/                           # Shared OIDC auth (Keycloak, roles, hooks)
 │   ├── shared-types/                   # Catena-X / AAS type definitions
 │   └── ui-tokens/                      # Shared design tokens
+│
+├── helm/
+│   └── eu-jap-hack/                    # Helm chart (11 services, HAProxy ingress, TLS)
 │
 ├── keycloak/
 │   ├── realm-export.json               # Pre-configured Keycloak realm
@@ -902,13 +1035,10 @@ eu-jap-hack-2026/
 │   └── verifier-api/
 │
 ├── scripts/
+│   ├── build-and-push.sh              # Docker build & ECR push script
 │   ├── verify-gaiax.ts                 # CLI: Gaia-X compliance verification
 │   └── seed-org-credential.ts          # CLI: Seed organization credentials
 │
-├── tests/
-│   ├── gaiax/                          # Gaia-X integration tests
-│   └── keycloak/                       # Keycloak theme tests
-│
-├── docker-compose.yml                  # Keycloak + walt.id services
+├── docker-compose.yml                  # Keycloak + walt.id + PostgreSQL services
 └── package.json                        # NPM workspaces root
 ```

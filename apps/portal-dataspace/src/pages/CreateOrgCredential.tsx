@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuthUser, createAuthAxios } from '@eu-jap-hack/auth'
+import { useAuthUser, createAuthAxios, getApiBase } from '@eu-jap-hack/auth'
 
-const API = 'http://localhost:8000/api'
+const API = getApiBase()
 
 interface FormData {
   legalName: string; vatId: string; eoriNumber: string; euid: string; leiCode: string; taxId: string; localId: string

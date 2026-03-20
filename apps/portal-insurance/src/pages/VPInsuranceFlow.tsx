@@ -37,9 +37,13 @@ const VP_STEP_LABELS = [
   { name: 'Credentials Extracted from VP', desc: 'Identifying credential types, issuer, and vehicle reference' },
   { name: 'VP Signature & Structure Validated', desc: 'Validating proof signature, challenge nonce, and credential freshness' },
   { name: 'Issuer DID Resolved', desc: 'Resolving issuer DID document from decentralized registry' },
-  { name: 'Service Endpoints Discovered', desc: 'Identifying VehicleInsuranceDataService endpoint from DID document' },
-  { name: 'Vehicle Data Requested via VP', desc: 'Calling manufacturer service endpoint with VP for validation' },
-  { name: 'Manufacturer Validated VP & Returned Data', desc: 'Manufacturer validated holder presentation and returned vehicle data' },
+  { name: 'DataService Endpoint Discovered', desc: 'Finding EDC DataService entry in issuer DID document' },
+  { name: 'DSP URL & Provider BPNL Extracted', desc: 'Parsing DSP protocol URL and Business Partner Number from DID' },
+  { name: 'EDC Catalog Queried', desc: 'Querying provider connector catalog for vehicle asset' },
+  { name: 'Contract Negotiation Initiated', desc: 'Proposing ODRL contract with provider via IDSA protocol' },
+  { name: 'Agreement Finalized', desc: 'Mutual contract agreement reached between consumer and provider' },
+  { name: 'Data Transfer via EDC', desc: 'HttpData-PULL transfer, EDR retrieval, and auth token obtained' },
+  { name: 'Vehicle DPP Data Received', desc: 'Digital Product Passport data received through EDC data plane' },
 ]
 
 export default function VPInsuranceFlow() {
@@ -75,7 +79,7 @@ export default function VPInsuranceFlow() {
   const [sessionError, setSessionError] = useState('')
   const [issuerDid, setIssuerDid] = useState('')
 
-  // Screen 4 state
+  // Quote state
   const [car, setCar] = useState<Record<string, unknown> | null>(null)
   const [issuing, setIssuing] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -501,7 +505,7 @@ export default function VPInsuranceFlow() {
             </svg>
           </div>
           <h2 className="text-lg font-semibold text-gray-900 mb-1">VP Verification</h2>
-          <p className="text-xs text-gray-400">Verifying presentation and retrieving vehicle data from manufacturer</p>
+          <p className="text-xs text-gray-400">Verifying presentation and retrieving vehicle data via sovereign EDC exchange</p>
         </div>
 
         {/* Party badges */}
@@ -608,7 +612,9 @@ export default function VPInsuranceFlow() {
           <span className="text-[9px] text-gray-300 bg-gray-50 border border-gray-100 px-2 py-1 rounded">OpenID4VP</span>
           <span className="text-[9px] text-gray-300 bg-gray-50 border border-gray-100 px-2 py-1 rounded">W3C Verifiable Presentations</span>
           <span className="text-[9px] text-gray-300 bg-gray-50 border border-gray-100 px-2 py-1 rounded">DID Resolution</span>
-          <span className="text-[9px] text-gray-300 bg-gray-50 border border-gray-100 px-2 py-1 rounded">VP-based Consent</span>
+          <span className="text-[9px] text-gray-300 bg-gray-50 border border-gray-100 px-2 py-1 rounded">IDSA Dataspace Protocol</span>
+          <span className="text-[9px] text-gray-300 bg-gray-50 border border-gray-100 px-2 py-1 rounded">ODRL Policy</span>
+          <span className="text-[9px] text-gray-300 bg-gray-50 border border-gray-100 px-2 py-1 rounded">HttpData-PULL</span>
         </div>
 
         {/* Success + Continue */}
@@ -616,7 +622,7 @@ export default function VPInsuranceFlow() {
           <div className="mt-6 text-center">
             <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-lg mb-4">
               <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-              <span className="text-xs font-medium text-emerald-800">VP verified and vehicle data retrieved successfully</span>
+              <span className="text-xs font-medium text-emerald-800">VP verified and vehicle data retrieved via EDC sovereign exchange</span>
             </div>
             <br />
             <button
@@ -633,12 +639,13 @@ export default function VPInsuranceFlow() {
 
   // ===== SCREEN 4: Quote =====
   if (screen === 'quote' && car) {
-    const dpp = car.dpp as Record<string, unknown> | null | undefined
-    const premium = calculatePremium(dpp, car.year as number)
+    const quoteCar = car
+    const dpp = quoteCar.dpp as Record<string, unknown> | null | undefined
+    const premium = calculatePremium(dpp, quoteCar.year as number)
     const condition = dpp?.stateOfHealth as Record<string, unknown> | undefined
     const damages = dpp?.damageHistory as Record<string, unknown> | undefined
     const incidents = damages?.incidents as Array<Record<string, unknown>> | undefined
-    const carOwnerId = (car.ownerId as string) || 'mario-sanchez'
+    const carOwnerId = (quoteCar.ownerId as string) || 'mario-sanchez'
     const ownerName = (dpp?.ownershipChain as Record<string, unknown>)?.currentOwner
       ? ((dpp?.ownershipChain as Record<string, unknown>)?.currentOwner as Record<string, unknown>)?.ownerName as string
       : 'Vehicle Owner'
@@ -656,7 +663,7 @@ export default function VPInsuranceFlow() {
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
           </div>
           <div>
-            <p className="text-xs font-medium text-emerald-800">Data Obtained via VP Presentation</p>
+            <p className="text-xs font-medium text-emerald-800">Data Verified via OpenID4VP + EDC Sovereign Exchange</p>
             <p className="text-[10px] text-emerald-600">Issuer DID: {issuerDid || 'did:web:tata-motors.smartsense.co'}</p>
           </div>
         </div>
@@ -665,10 +672,10 @@ export default function VPInsuranceFlow() {
         <div className="mb-8">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">{String(car.year || '')} &middot; {String(car.variant || '')}</p>
-              <h1 className="text-xl font-semibold text-gray-900">{String(car.make || '')} {String(car.model || '')}</h1>
-              <p className="text-xs text-gray-300 font-mono mt-1">{String(car.vin || extractVin(vinInput))}</p>
-              <span className="inline-block mt-2 text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">VP Verified</span>
+              <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">{String(quoteCar.year || '')} &middot; {String(quoteCar.variant || '')}</p>
+              <h1 className="text-xl font-semibold text-gray-900">{String(quoteCar.make || '')} {String(quoteCar.model || '')}</h1>
+              <p className="text-xs text-gray-300 font-mono mt-1">{String(quoteCar.vin || extractVin(vinInput))}</p>
+              <span className="inline-block mt-2 text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">OpenID4VP + EDC Verified</span>
             </div>
             <div className="text-right">
               <p className="text-3xl font-semibold text-gray-900">&euro;{premium.total}</p>
@@ -768,7 +775,7 @@ export default function VPInsuranceFlow() {
                 <div className="bg-gray-50 rounded-lg p-4 mb-5 space-y-2">
                   <div className="flex justify-between">
                     <span className="text-xs text-gray-400">Vehicle</span>
-                    <span className="text-xs font-medium text-gray-800">{String(car.make || '')} {String(car.model || '')}</span>
+                    <span className="text-xs font-medium text-gray-800">{String(quoteCar.make || '')} {String(quoteCar.model || '')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-xs text-gray-400">Coverage</span>

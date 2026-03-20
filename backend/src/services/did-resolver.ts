@@ -46,6 +46,7 @@ export const SERVICE_TYPES = {
   VEHICLE_INSURANCE_DATA: 'VehicleInsuranceDataService',
   VEHICLE_CREDENTIALS: 'VehicleCredentialService',
   VP_VERIFICATION: 'VPVerificationService',
+  DATA_SERVICE: 'DataService',
 } as const;
 
 // --------------- DID Document Builders ---------------
@@ -75,28 +76,16 @@ function buildTataMotorsDidDocument(): DidDocument {
         description: 'TATA Motors Vehicle Asset Registry — resolve Car IDs and public vehicle data',
       },
       {
-        id: 'did:eu-dataspace:company-tata-001#vehicle-dpp',
-        type: SERVICE_TYPES.VEHICLE_DPP,
-        serviceEndpoint: `${REGISTRY_BASE}/api/vehicle-registry/vehicles/{vin}/dpp-vp`,
-        description: 'Vehicle Digital Product Passport — requires VP presentation for access',
-      },
-      {
-        id: 'did:eu-dataspace:company-tata-001#vehicle-insurance-data',
-        type: SERVICE_TYPES.VEHICLE_INSURANCE_DATA,
-        serviceEndpoint: `${REGISTRY_BASE}/api/vehicle-registry/vehicles/{vin}/insurance-data-vp`,
-        description: 'Insurance-optimized vehicle data — requires VP presentation with OwnershipVC',
-      },
-      {
-        id: 'did:eu-dataspace:company-tata-001#vehicle-credentials',
-        type: SERVICE_TYPES.VEHICLE_CREDENTIALS,
-        serviceEndpoint: `${REGISTRY_BASE}/api/vehicle-registry/vehicles/{vin}/credentials`,
-        description: 'Vehicle-linked Verifiable Credentials',
-      },
-      {
         id: 'did:eu-dataspace:company-tata-001#vp-verification',
         type: SERVICE_TYPES.VP_VERIFICATION,
         serviceEndpoint: `${REGISTRY_BASE}/api/vehicle-registry/verify-vp`,
         description: 'VP verification endpoint — validate holder presentations',
+      },
+      {
+        id: 'did:eu-dataspace:company-tata-001#data-service',
+        type: SERVICE_TYPES.DATA_SERVICE,
+        serviceEndpoint: 'https://tata-motors-protocol.tx.the-sense.io/api/v1/dsp#BPNL00000000024R',
+        description: 'IDSA Dataspace Protocol endpoint for sovereign data exchange — DSP URL with provider BPNL',
       },
     ],
   };

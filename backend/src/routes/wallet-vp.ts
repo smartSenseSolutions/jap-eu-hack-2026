@@ -5,7 +5,7 @@
  */
 
 import { Router } from 'express';
-import db from '../db';
+import prisma from '../db';
 import {
   createVerifiablePresentation,
   VerifiableCredential,
@@ -18,12 +18,15 @@ const router = Router();
  * GET /credentials/:userId/ownership
  * Get all OwnershipVCs held by a user, formatted as W3C VCs
  */
-router.get('/credentials/:userId/ownership', (req, res) => {
-  const wallet = db.get('wallet').get(req.params.userId).value() as { credentialIds: string[] } | undefined;
+router.get('/credentials/:userId/ownership', async (req, res) => {
+  const wallet = await prisma.wallet.findUnique({
+    where: { userId: req.params.userId },
+    include: { credentials: { include: { credential: true } } },
+  });
   if (!wallet) return res.json([]);
 
-  const ownershipCreds = wallet.credentialIds
-    .map(id => db.get('credentials').find({ id }).value())
+  const ownershipCreds = wallet.credentials
+    .map(wc => wc.credential)
     .filter((c: any) => c && c.type === 'OwnershipVC')
     .map((c: any) => formatAsW3CVC(c));
 
@@ -34,7 +37,7 @@ router.get('/credentials/:userId/ownership', (req, res) => {
  * POST /generate-vp
  * Generate a Verifiable Presentation wrapping specified credentials
  */
-router.post('/generate-vp', (req, res) => {
+router.post('/generate-vp', async (req, res) => {
   const { userId, credentialIds, challenge, domain } = req.body;
 
   if (!userId || !credentialIds || !Array.isArray(credentialIds) || credentialIds.length === 0) {
@@ -46,7 +49,7 @@ router.post('/generate-vp', (req, res) => {
   // Fetch and format credentials as W3C VCs
   const credentials: VerifiableCredential[] = [];
   for (const credId of credentialIds) {
-    const cred = db.get('credentials').find({ id: credId }).value() as any;
+    const cred = await prisma.credential.findUnique({ where: { id: credId } });
     if (!cred) {
       return res.status(404).json({ error: `Credential ${credId} not found` });
     }
@@ -60,18 +63,20 @@ router.post('/generate-vp', (req, res) => {
   });
 
   // Log presentation event
-  db.get('vehicle_audit_log').push({
-    id: require('uuid').v4(),
-    vin: credentials[0]?.credentialSubject?.vin || 'unknown',
-    action: 'vp_created',
-    actor: holderDid,
-    timestamp: new Date().toISOString(),
-    details: {
-      credentialTypes: credentials.map(c => c.type.join(', ')),
-      challenge,
-      domain,
+  await prisma.vehicleAuditLog.create({
+    data: {
+      id: require('uuid').v4(),
+      vin: (credentials[0]?.credentialSubject as any)?.vin || 'unknown',
+      action: 'vp_created',
+      actor: holderDid,
+      timestamp: new Date(),
+      details: {
+        credentialTypes: credentials.map(c => c.type.join(', ')),
+        challenge,
+        domain,
+      } as any,
     },
-  }).write();
+  });
 
   res.json({
     vp,

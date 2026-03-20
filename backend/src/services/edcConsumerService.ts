@@ -1,11 +1,9 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
-import db from '../db';
+import prisma from '../db';
 
 const EDC_MGMT_URL = process.env.EDC_CONSUMER_MANAGEMENT_URL || '';
 const EDC_API_KEY = process.env.EDC_CONSUMER_API_KEY || '';
-const PARTNER_BPN = process.env.EDC_PARTNER_BPN || '';
-const PARTNER_DSP_URL = process.env.EDC_PARTNER_DSP_URL || '';
 
 const NEGOTIATION_INITIAL_DELAY = parseInt(process.env.EDC_NEGOTIATION_INITIAL_DELAY_MS || '5000', 10);
 const NEGOTIATION_POLL_INTERVAL = parseInt(process.env.EDC_NEGOTIATION_POLL_INTERVAL_MS || '5000', 10);
@@ -18,6 +16,11 @@ const headers = {
 
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export interface EdcProviderConfig {
+  dspUrl: string;
+  bpnl: string;
 }
 
 export interface EdcStepUpdate {
@@ -71,7 +74,7 @@ const STEP_NAMES = [
 ];
 
 // Step 1: Query catalog and find asset matching VIN
-export async function queryCatalog(vin: string): Promise<{ assetId: string; offerId: string }> {
+export async function queryCatalog(vin: string, provider: EdcProviderConfig): Promise<{ assetId: string; offerId: string }> {
   console.log(`[EDC Consumer] Querying catalog for VIN: ${vin}`);
   const payload = {
     '@context': {
@@ -79,8 +82,8 @@ export async function queryCatalog(vin: string): Promise<{ assetId: string; offe
       odrl: 'http://www.w3.org/ns/odrl/2/',
     },
     '@type': 'CatalogRequest',
-    counterPartyAddress: PARTNER_DSP_URL,
-    counterPartyId: PARTNER_BPN,
+    counterPartyAddress: provider.dspUrl,
+    counterPartyId: provider.bpnl,
     protocol: 'dataspace-protocol-http',
     querySpec: {
       '@type': 'QuerySpec',
@@ -113,22 +116,22 @@ export async function queryCatalog(vin: string): Promise<{ assetId: string; offe
 }
 
 // Step 2: Initiate contract negotiation
-export async function initiateNegotiation(offerId: string, assetId: string): Promise<string> {
+export async function initiateNegotiation(offerId: string, assetId: string, provider: EdcProviderConfig): Promise<string> {
   const payload = {
     '@context': {
       '@vocab': 'https://w3id.org/edc/v0.0.1/ns/',
     },
     '@type': 'ContractRequest',
-    counterPartyAddress: PARTNER_DSP_URL,
+    counterPartyAddress: provider.dspUrl,
     protocol: 'dataspace-protocol-http',
-    counterPartyId: PARTNER_BPN,
+    counterPartyId: provider.bpnl,
     policy: {
       '@context': 'http://www.w3.org/ns/odrl.jsonld',
       '@id': offerId,
       '@type': 'odrl:Offer',
       permission: [],
       target: assetId,
-      assigner: PARTNER_BPN,
+      assigner: provider.bpnl,
     },
   };
 
@@ -160,17 +163,17 @@ export async function waitForAgreement(negotiationId: string): Promise<string> {
 }
 
 // Step 4: Initiate transfer
-export async function initiateTransfer(assetId: string, contractAgreementId: string): Promise<string> {
+export async function initiateTransfer(assetId: string, contractAgreementId: string, provider: EdcProviderConfig): Promise<string> {
   const payload = {
     '@context': {
       '@vocab': 'https://w3id.org/edc/v0.0.1/ns/',
     },
     '@type': 'TransferRequest',
     assetId,
-    counterPartyAddress: PARTNER_DSP_URL,
+    counterPartyAddress: provider.dspUrl,
     contractId: contractAgreementId,
     protocol: 'dataspace-protocol-http',
-    counterPartyId: PARTNER_BPN,
+    counterPartyId: provider.bpnl,
     transferType: 'HttpData-PULL',
   };
 
@@ -235,6 +238,7 @@ export async function fetchAssetData(endpoint: string, authorization: string): P
 // Full orchestration with progress callbacks and transaction logging
 export async function negotiateAndFetchData(
   vin: string,
+  provider: EdcProviderConfig,
   onProgress?: ProgressCallback,
   meta?: { consentId?: string; requestedBy?: string },
 ): Promise<any> {
@@ -243,7 +247,7 @@ export async function negotiateAndFetchData(
     id: txId,
     vin,
     consumer: { name: 'Digit Insurance', bpn: process.env.BPN_NUMBER || 'BPNL_CONSUMER' },
-    provider: { name: 'TATA Motors', bpn: PARTNER_BPN, dspUrl: PARTNER_DSP_URL },
+    provider: { name: 'Provider', bpn: provider.bpnl, dspUrl: provider.dspUrl },
     status: 'running',
     steps: [],
     dataCategories: [
@@ -260,9 +264,9 @@ export async function negotiateAndFetchData(
   };
 
   // Persist initial transaction
-  db.get('edc_transactions').push(tx).write();
+  await prisma.edcTransaction.create({ data: tx as any });
 
-  const emitStep = (step: number, status: 'running' | 'completed' | 'failed', durationMs?: number, details?: Record<string, unknown>) => {
+  const emitStep = async (step: number, status: 'running' | 'completed' | 'failed', durationMs?: number, details?: Record<string, unknown>) => {
     const update: EdcStepUpdate = { step, totalSteps: 7, name: STEP_NAMES[step - 1], status, durationMs, details };
     if (onProgress) onProgress(update);
 
@@ -286,65 +290,65 @@ export async function negotiateAndFetchData(
         details,
       });
     }
-    db.get('edc_transactions').find({ id: txId }).assign(tx).write();
+    await prisma.edcTransaction.update({ where: { id: txId }, data: tx as any });
   };
 
   const globalStart = Date.now();
 
   try {
     // Step 1
-    emitStep(1, 'running');
+    await emitStep(1, 'running');
     let t0 = Date.now();
-    const { assetId, offerId } = await queryCatalog(vin);
+    const { assetId, offerId } = await queryCatalog(vin, provider);
     tx.assetId = assetId;
     tx.offerId = offerId;
-    emitStep(1, 'completed', Date.now() - t0, { assetId, offerId });
+    await emitStep(1, 'completed', Date.now() - t0, { assetId, offerId });
 
     // Step 2
-    emitStep(2, 'running');
+    await emitStep(2, 'running');
     t0 = Date.now();
-    const negotiationId = await initiateNegotiation(offerId, assetId);
+    const negotiationId = await initiateNegotiation(offerId, assetId, provider);
     tx.negotiationId = negotiationId;
-    emitStep(2, 'completed', Date.now() - t0, { negotiationId });
+    await emitStep(2, 'completed', Date.now() - t0, { negotiationId });
 
     // Step 3
-    emitStep(3, 'running');
+    await emitStep(3, 'running');
     t0 = Date.now();
     const contractAgreementId = await waitForAgreement(negotiationId);
     tx.contractAgreementId = contractAgreementId;
-    emitStep(3, 'completed', Date.now() - t0, { contractAgreementId });
+    await emitStep(3, 'completed', Date.now() - t0, { contractAgreementId });
 
     // Step 4
-    emitStep(4, 'running');
+    await emitStep(4, 'running');
     t0 = Date.now();
-    const transferId = await initiateTransfer(assetId, contractAgreementId);
+    const transferId = await initiateTransfer(assetId, contractAgreementId, provider);
     tx.transferId = transferId;
-    emitStep(4, 'completed', Date.now() - t0, { transferId });
+    await emitStep(4, 'completed', Date.now() - t0, { transferId });
 
     // Step 5
-    emitStep(5, 'running');
+    await emitStep(5, 'running');
     t0 = Date.now();
     await sleep(2000);
     await getTransferProcess(contractAgreementId);
-    emitStep(5, 'completed', Date.now() - t0);
+    await emitStep(5, 'completed', Date.now() - t0);
 
     // Step 6
-    emitStep(6, 'running');
+    await emitStep(6, 'running');
     t0 = Date.now();
     const { endpoint, authorization } = await getAuthCode(transferId);
-    emitStep(6, 'completed', Date.now() - t0, { dataPlaneEndpoint: endpoint });
+    await emitStep(6, 'completed', Date.now() - t0, { dataPlaneEndpoint: endpoint });
 
     // Step 7
-    emitStep(7, 'running');
+    await emitStep(7, 'running');
     t0 = Date.now();
     const data = await fetchAssetData(endpoint, authorization);
-    emitStep(7, 'completed', Date.now() - t0, { fieldsReceived: Object.keys(data).length });
+    await emitStep(7, 'completed', Date.now() - t0, { fieldsReceived: Object.keys(data).length });
 
     // Finalize
     tx.status = 'completed';
     tx.completedAt = new Date().toISOString();
     tx.totalDurationMs = Date.now() - globalStart;
-    db.get('edc_transactions').find({ id: txId }).assign(tx).write();
+    await prisma.edcTransaction.update({ where: { id: txId }, data: tx as any });
 
     return data;
   } catch (error: any) {
@@ -352,13 +356,13 @@ export async function negotiateAndFetchData(
     if (failedStep) {
       failedStep.status = 'failed';
       failedStep.completedAt = new Date().toISOString();
-      emitStep(failedStep.step, 'failed', undefined, { error: error.message });
+      await emitStep(failedStep.step, 'failed', undefined, { error: error.message });
     }
     tx.status = 'failed';
     tx.error = error.message;
     tx.completedAt = new Date().toISOString();
     tx.totalDurationMs = Date.now() - globalStart;
-    db.get('edc_transactions').find({ id: txId }).assign(tx).write();
+    await prisma.edcTransaction.update({ where: { id: txId }, data: tx as any });
     throw error;
   }
 }

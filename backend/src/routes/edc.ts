@@ -1,18 +1,23 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
-import { negotiateAndFetchData, EdcStepUpdate } from '../services/edcConsumerService';
-import db from '../db';
+import { negotiateAndFetchData, EdcStepUpdate, EdcProviderConfig } from '../services/edcConsumerService';
+import prisma from '../db';
 
 const router = Router();
 
 // Full EDC negotiation with SSE streaming of step progress
 router.post('/negotiate', authenticate, async (req, res) => {
-  const { vin, consentId, stream } = req.body;
+  const { vin, consentId, stream, dspUrl, bpnl } = req.body;
 
   if (!vin) {
     return res.status(400).json({ error: 'VIN is required' });
   }
 
+  if (!dspUrl || !bpnl) {
+    return res.status(400).json({ error: 'dspUrl and bpnl are required' });
+  }
+
+  const provider: EdcProviderConfig = { dspUrl, bpnl };
   const requestedBy = (req as any).user?.preferred_username || (req as any).user?.sub || 'unknown';
 
   // If client requests streaming, use SSE
@@ -31,6 +36,7 @@ router.post('/negotiate', authenticate, async (req, res) => {
     try {
       const data = await negotiateAndFetchData(
         vin,
+        provider,
         (update: EdcStepUpdate) => sendEvent('step', update),
         { consentId, requestedBy },
       );
@@ -46,7 +52,7 @@ router.post('/negotiate', authenticate, async (req, res) => {
   // Non-streaming: original behavior
   try {
     const startTime = Date.now();
-    const data = await negotiateAndFetchData(vin, undefined, { consentId, requestedBy });
+    const data = await negotiateAndFetchData(vin, provider, undefined, { consentId, requestedBy });
     const duration = Date.now() - startTime;
     console.log(`[EDC Route] Negotiation complete for VIN: ${vin} (took ${duration}ms)`);
     res.json(data);
@@ -61,13 +67,13 @@ router.post('/negotiate', authenticate, async (req, res) => {
 
 // Get all EDC transactions (for dashboard)
 router.get('/transactions', async (_req, res) => {
-  const transactions = db.get('edc_transactions').sortBy('startedAt').reverse().value();
+  const transactions = await prisma.edcTransaction.findMany({ orderBy: { startedAt: 'desc' } });
   res.json(transactions);
 });
 
 // Get a single transaction by ID
 router.get('/transactions/:id', async (req, res) => {
-  const tx = db.get('edc_transactions').find({ id: req.params.id }).value();
+  const tx = await prisma.edcTransaction.findUnique({ where: { id: req.params.id } });
   if (!tx) return res.status(404).json({ error: 'Transaction not found' });
   res.json(tx);
 });

@@ -5,7 +5,6 @@
 import {
   resolveDid,
   selectEndpoint,
-  resolveEndpointUrl,
   getServiceEndpoints,
   SERVICE_TYPES,
 } from '../services/did-resolver';
@@ -42,26 +41,42 @@ describe('resolveDid', () => {
     expect(result.didDocument!.verificationMethod!.length).toBeGreaterThan(0);
   });
 
-  it('should include service endpoints for TATA Motors', () => {
+  it('should include DataService and VehicleRegistryService for TATA Motors', () => {
     const result = resolveDid('did:eu-dataspace:company-tata-001');
     const services = result.didDocument!.service || [];
-    expect(services.length).toBeGreaterThanOrEqual(4);
+    expect(services.length).toBeGreaterThanOrEqual(3);
 
     const serviceTypes = services.map(s => s.type);
     expect(serviceTypes).toContain(SERVICE_TYPES.VEHICLE_REGISTRY);
-    expect(serviceTypes).toContain(SERVICE_TYPES.VEHICLE_DPP);
-    expect(serviceTypes).toContain(SERVICE_TYPES.VEHICLE_INSURANCE_DATA);
     expect(serviceTypes).toContain(SERVICE_TYPES.VP_VERIFICATION);
+    expect(serviceTypes).toContain(SERVICE_TYPES.DATA_SERVICE);
+  });
+
+  it('should NOT include removed direct-fetch service types', () => {
+    const result = resolveDid('did:eu-dataspace:company-tata-001');
+    const serviceTypes = (result.didDocument!.service || []).map(s => s.type);
+    expect(serviceTypes).not.toContain(SERVICE_TYPES.VEHICLE_INSURANCE_DATA);
+    expect(serviceTypes).not.toContain(SERVICE_TYPES.VEHICLE_DPP);
+    expect(serviceTypes).not.toContain(SERVICE_TYPES.VEHICLE_CREDENTIALS);
+  });
+
+  it('should have DataService with DSP URL and BPNL in fragment', () => {
+    const result = resolveDid('did:eu-dataspace:company-tata-001');
+    const dataService = (result.didDocument!.service || []).find(s => s.type === 'DataService');
+    expect(dataService).toBeDefined();
+    expect(dataService!.serviceEndpoint).toContain('#BPNL');
+    expect(dataService!.serviceEndpoint).toContain('https://');
+    expect(dataService!.id).toBe('did:eu-dataspace:company-tata-001#data-service');
   });
 });
 
 describe('selectEndpoint', () => {
-  it('should find VehicleInsuranceDataService endpoint', () => {
+  it('should find DataService endpoint', () => {
     const { didDocument } = resolveDid('did:eu-dataspace:company-tata-001');
-    const endpoint = selectEndpoint(didDocument!, SERVICE_TYPES.VEHICLE_INSURANCE_DATA);
+    const endpoint = selectEndpoint(didDocument!, SERVICE_TYPES.DATA_SERVICE);
     expect(endpoint).not.toBeNull();
-    expect(endpoint!.type).toBe(SERVICE_TYPES.VEHICLE_INSURANCE_DATA);
-    expect(endpoint!.serviceEndpoint).toContain('/insurance-data-vp');
+    expect(endpoint!.type).toBe('DataService');
+    expect(endpoint!.serviceEndpoint).toContain('#BPNL');
   });
 
   it('should find VehicleRegistryService endpoint', () => {
@@ -76,15 +91,11 @@ describe('selectEndpoint', () => {
     const endpoint = selectEndpoint(didDocument!, 'UnknownServiceType');
     expect(endpoint).toBeNull();
   });
-});
 
-describe('resolveEndpointUrl', () => {
-  it('should substitute VIN in endpoint URL', () => {
+  it('should return null for removed VehicleInsuranceDataService', () => {
     const { didDocument } = resolveDid('did:eu-dataspace:company-tata-001');
     const endpoint = selectEndpoint(didDocument!, SERVICE_TYPES.VEHICLE_INSURANCE_DATA);
-    const url = resolveEndpointUrl(endpoint!, { vin: 'TATA2024NEXONEV001' });
-    expect(url).toContain('TATA2024NEXONEV001');
-    expect(url).not.toContain('{vin}');
+    expect(endpoint).toBeNull();
   });
 });
 
@@ -92,7 +103,7 @@ describe('getServiceEndpoints', () => {
   it('should return all service endpoints', () => {
     const { didDocument } = resolveDid('did:eu-dataspace:company-tata-001');
     const endpoints = getServiceEndpoints(didDocument!);
-    expect(endpoints.length).toBeGreaterThanOrEqual(4);
+    expect(endpoints.length).toBe(3);
     endpoints.forEach(ep => {
       expect(ep.id).toBeTruthy();
       expect(ep.type).toBeTruthy();

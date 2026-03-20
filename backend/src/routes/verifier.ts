@@ -7,8 +7,7 @@
 
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import axios from 'axios';
-import db from '../db';
+import prisma from '../db';
 import { authenticate } from '../middleware/auth';
 import {
   parseVP,
@@ -20,10 +19,19 @@ import {
 } from '../services/vp-processor';
 import {
   resolveDid,
-  selectEndpoint,
-  resolveEndpointUrl,
   SERVICE_TYPES,
 } from '../services/did-resolver';
+import { discoverDataService } from '../services/dataservice-discovery';
+import {
+  queryCatalog,
+  initiateNegotiation,
+  waitForAgreement,
+  initiateTransfer,
+  getTransferProcess,
+  getAuthCode,
+  fetchAssetData,
+  EdcProviderConfig,
+} from '../services/edcConsumerService';
 
 const REGISTRY_BASE = process.env.APP_BASE_URL || 'http://localhost:8000';
 const router = Router();
@@ -35,25 +43,30 @@ const VP_FLOW_STEPS = [
   'Credentials Extracted from VP',
   'VP Signature & Structure Validated',
   'Issuer DID Resolved',
-  'Service Endpoints Discovered',
-  'Vehicle Data Requested via VP',
-  'Manufacturer Validated VP & Returned Data',
+  'DataService Endpoint Discovered',
+  'DSP URL & Provider BPNL Extracted',
+  'EDC Catalog Queried',
+  'Contract Negotiation Initiated',
+  'Agreement Finalized',
+  'Data Transfer via EDC',
+  'Vehicle DPP Data Received',
 ];
 
 // --------------- Helper ---------------
 
-function updateSession(sessionId: string, updates: Partial<PresentationSession>) {
-  const session = db.get('presentation_sessions').find({ id: sessionId });
-  if (session.value()) {
-    session.assign(updates).write();
+async function updateSession(sessionId: string, updates: Partial<PresentationSession>) {
+  const session = await prisma.presentationSession.findUnique({ where: { id: sessionId } });
+  if (session) {
+    await prisma.presentationSession.update({ where: { id: sessionId }, data: updates as any });
   }
 }
 
-function updateSessionStep(sessionId: string, stepNum: number, status: SessionStep['status'], details?: Record<string, unknown>, durationMs?: number) {
-  const session = db.get('presentation_sessions').find({ id: sessionId }).value() as PresentationSession;
+async function updateSessionStep(sessionId: string, stepNum: number, status: SessionStep['status'], details?: Record<string, unknown>, durationMs?: number) {
+  const session = await prisma.presentationSession.findUnique({ where: { id: sessionId } });
   if (!session) return;
 
-  const step = session.steps.find(s => s.step === stepNum);
+  const steps = (session.steps as any[]) || [];
+  const step = steps.find((s: any) => s.step === stepNum);
   if (step) {
     step.status = status;
     if (status === 'running') step.startedAt = new Date().toISOString();
@@ -63,7 +76,7 @@ function updateSessionStep(sessionId: string, stepNum: number, status: SessionSt
     }
     if (details) step.details = details;
   }
-  db.get('presentation_sessions').find({ id: sessionId }).assign(session).write();
+  await prisma.presentationSession.update({ where: { id: sessionId }, data: { steps } });
 }
 
 // --------------- Routes ---------------
@@ -72,42 +85,42 @@ function updateSessionStep(sessionId: string, stepNum: number, status: SessionSt
  * POST /presentation-request
  * Digit Insurance creates a presentation request (OpenID4VP Authorization Request)
  */
-router.post('/presentation-request', authenticate, (req, res) => {
+router.post('/presentation-request', authenticate, async (req, res) => {
   const { purpose, expectedCredentialTypes, requestedClaims } = req.body;
 
   const nonce = uuidv4();
   const requestId = uuidv4();
 
-  const request: PresentationRequest = {
-    id: requestId,
-    verifierId: 'company-digit-001',
-    verifierName: 'Digit Insurance',
-    verifierDid: 'did:eu-dataspace:company-digit-001',
-    nonce,
-    purpose: purpose || 'Vehicle insurance underwriting — verify ownership and access vehicle data',
-    expectedCredentialTypes: expectedCredentialTypes || ['OwnershipVC'],
-    requestedClaims: requestedClaims || ['vin', 'make', 'model', 'year', 'ownerId'],
-    callbackUrl: `${REGISTRY_BASE}/api/verifier/callback`,
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 min
-  };
-
-  db.get('presentation_requests').push(request).write();
+  const request = await prisma.presentationRequest.create({
+    data: {
+      id: requestId,
+      verifierId: 'company-digit-001',
+      verifierName: 'Digit Insurance',
+      verifierDid: 'did:eu-dataspace:company-digit-001',
+      nonce,
+      purpose: purpose || 'Vehicle insurance underwriting — verify ownership and access vehicle data',
+      expectedCredentialTypes: expectedCredentialTypes || ['OwnershipVC'],
+      requestedClaims: requestedClaims || ['vin', 'make', 'model', 'year', 'ownerId'],
+      callbackUrl: `${REGISTRY_BASE}/api/verifier/callback`,
+      status: 'pending',
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min
+    },
+  });
 
   // Create a session to track processing
-  const session: PresentationSession = {
-    id: uuidv4(),
-    requestId,
-    status: 'waiting',
-    steps: VP_FLOW_STEPS.map((name, i) => ({
-      step: i + 1,
-      name,
-      status: 'pending' as const,
-    })),
-    startedAt: new Date().toISOString(),
-  };
-  db.get('presentation_sessions').push(session).write();
+  const session = await prisma.presentationSession.create({
+    data: {
+      id: uuidv4(),
+      requestId,
+      status: 'waiting',
+      steps: VP_FLOW_STEPS.map((name, i) => ({
+        step: i + 1,
+        name,
+        status: 'pending' as const,
+      })),
+      startedAt: new Date(),
+    },
+  });
 
   // Build QR payload (OpenID4VP-style authorization request)
   const qrPayload = {
@@ -141,7 +154,7 @@ router.post('/presentation-request', authenticate, (req, res) => {
   };
 
   // Deep link for same-device flow
-  const deepLink = `smartsense-wallet://present?request_id=${requestId}&callback=${encodeURIComponent(request.callbackUrl)}&nonce=${nonce}`;
+  const deepLink = `smartsense-wallet://present?request_id=${requestId}&callback=${encodeURIComponent(request.callbackUrl!)}&nonce=${nonce}`;
 
   res.status(201).json({
     ...request,
@@ -156,13 +169,13 @@ router.post('/presentation-request', authenticate, (req, res) => {
  * GET /presentation-request/:id
  * Wallet fetches presentation request details (e.g. after scanning QR)
  */
-router.get('/presentation-request/:id', (req, res) => {
-  const request = db.get('presentation_requests').find({ id: req.params.id }).value();
+router.get('/presentation-request/:id', async (req, res) => {
+  const request = await prisma.presentationRequest.findUnique({ where: { id: req.params.id } });
   if (!request) return res.status(404).json({ error: 'Presentation request not found' });
 
   // Check expiry
-  if (new Date(request.expiresAt) < new Date() && request.status === 'pending') {
-    db.get('presentation_requests').find({ id: req.params.id }).assign({ status: 'expired' }).write();
+  if (request.expiresAt && new Date(request.expiresAt) < new Date() && request.status === 'pending') {
+    await prisma.presentationRequest.update({ where: { id: req.params.id }, data: { status: 'expired' } });
     return res.status(410).json({ error: 'Presentation request has expired' });
   }
 
@@ -180,22 +193,22 @@ router.post('/callback', async (req, res) => {
     return res.status(400).json({ error: 'requestId and vpToken are required' });
   }
 
-  const request = db.get('presentation_requests').find({ id: requestId }).value() as PresentationRequest;
+  const request = await prisma.presentationRequest.findUnique({ where: { id: requestId } });
   if (!request) return res.status(404).json({ error: 'Presentation request not found' });
   if (request.status !== 'pending') {
     return res.status(409).json({ error: `Request already ${request.status}` });
   }
 
   // Find session
-  const session = db.get('presentation_sessions').find({ requestId }).value() as PresentationSession;
+  const session = await prisma.presentationSession.findFirst({ where: { requestId } });
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   // Mark request as fulfilled
-  db.get('presentation_requests').find({ id: requestId }).assign({ status: 'fulfilled' }).write();
-  updateSession(session.id, { status: 'processing', vpToken });
+  await prisma.presentationRequest.update({ where: { id: requestId }, data: { status: 'fulfilled' } });
+  await updateSession(session.id, { status: 'processing', vpToken } as any);
 
   // Process VP asynchronously (the insurance portal polls session status)
-  processVPAsync(session.id, vpToken, request).catch(err => {
+  processVPAsync(session.id, vpToken, request as any).catch(err => {
     console.error('[Verifier] VP processing error:', err.message);
   });
 
@@ -206,8 +219,8 @@ router.post('/callback', async (req, res) => {
  * GET /session/:id
  * Insurance portal polls this to get step-by-step progress
  */
-router.get('/session/:id', (req, res) => {
-  const session = db.get('presentation_sessions').find({ id: req.params.id }).value();
+router.get('/session/:id', async (req, res) => {
+  const session = await prisma.presentationSession.findUnique({ where: { id: req.params.id } });
   if (!session) return res.status(404).json({ error: 'Session not found' });
   res.json(session);
 });
@@ -216,8 +229,8 @@ router.get('/session/:id', (req, res) => {
  * GET /session-by-request/:requestId
  * Insurance portal can also look up session by request ID
  */
-router.get('/session-by-request/:requestId', (req, res) => {
-  const session = db.get('presentation_sessions').find({ requestId: req.params.requestId }).value();
+router.get('/session-by-request/:requestId', async (req, res) => {
+  const session = await prisma.presentationSession.findFirst({ where: { requestId: req.params.requestId } });
   if (!session) return res.status(404).json({ error: 'Session not found' });
   res.json(session);
 });
@@ -226,16 +239,16 @@ router.get('/session-by-request/:requestId', (req, res) => {
  * POST /decline
  * Wallet declines the presentation request
  */
-router.post('/decline', (req, res) => {
+router.post('/decline', async (req, res) => {
   const { requestId } = req.body;
-  const request = db.get('presentation_requests').find({ id: requestId });
-  if (!request.value()) return res.status(404).json({ error: 'Request not found' });
+  const request = await prisma.presentationRequest.findUnique({ where: { id: requestId } });
+  if (!request) return res.status(404).json({ error: 'Request not found' });
 
-  request.assign({ status: 'declined' }).write();
+  await prisma.presentationRequest.update({ where: { id: requestId }, data: { status: 'declined' } });
 
-  const session = db.get('presentation_sessions').find({ requestId }).value();
+  const session = await prisma.presentationSession.findFirst({ where: { requestId } });
   if (session) {
-    updateSession(session.id, { status: 'failed', error: 'User declined the presentation request' });
+    await updateSession(session.id, { status: 'failed', error: 'User declined the presentation request' } as any);
   }
 
   res.json({ status: 'declined' });
@@ -260,18 +273,18 @@ async function processVPAsync(sessionId: string, vpToken: unknown, request: Pres
 
   try {
     // Step 1: Parse VP
-    updateSessionStep(sessionId, 1, 'running');
+    await updateSessionStep(sessionId, 1, 'running');
     await sleep(400); // Simulate processing time
     let t0 = Date.now();
     const vp = parseVP(vpToken as string | object);
-    updateSessionStep(sessionId, 1, 'completed', {
+    await updateSessionStep(sessionId, 1, 'completed', {
       holder: vp.holder,
       credentialCount: vp.verifiableCredential.length,
       hasProof: !!vp.proof,
     }, Date.now() - t0);
 
     // Step 2: Extract credentials
-    updateSessionStep(sessionId, 2, 'running');
+    await updateSessionStep(sessionId, 2, 'running');
     await sleep(300);
     t0 = Date.now();
     const credentials = extractCredentials(vp);
@@ -284,8 +297,8 @@ async function processVPAsync(sessionId: string, vpToken: unknown, request: Pres
     const vin = ownershipCred.subject.vin as string;
     if (!vin) throw new Error('OwnershipVC does not contain a VIN');
 
-    updateSession(sessionId, { extractedCredentials: credentials, vehicleVin: vin });
-    updateSessionStep(sessionId, 2, 'completed', {
+    await updateSession(sessionId, { extractedCredentials: credentials, vehicleVin: vin } as any);
+    await updateSessionStep(sessionId, 2, 'completed', {
       credentialTypes: credentials.map(c => c.type.join(', ')),
       issuer: ownershipCred.issuer,
       vin,
@@ -293,7 +306,7 @@ async function processVPAsync(sessionId: string, vpToken: unknown, request: Pres
     }, Date.now() - t0);
 
     // Step 3: Validate VP
-    updateSessionStep(sessionId, 3, 'running');
+    await updateSessionStep(sessionId, 3, 'running');
     await sleep(500);
     t0 = Date.now();
     const validation = validateVP(vp, {
@@ -307,7 +320,7 @@ async function processVPAsync(sessionId: string, vpToken: unknown, request: Pres
       throw new Error(`VP validation failed: ${validation.errors.join('; ')}`);
     }
 
-    updateSessionStep(sessionId, 3, 'completed', {
+    await updateSessionStep(sessionId, 3, 'completed', {
       valid: true,
       challengeMatched: true,
       holderVerified: true,
@@ -315,7 +328,7 @@ async function processVPAsync(sessionId: string, vpToken: unknown, request: Pres
     }, Date.now() - t0);
 
     // Step 4: Resolve issuer DID
-    updateSessionStep(sessionId, 4, 'running');
+    await updateSessionStep(sessionId, 4, 'running');
     await sleep(600);
     t0 = Date.now();
     const issuerDid = ownershipCred.issuer;
@@ -325,87 +338,131 @@ async function processVPAsync(sessionId: string, vpToken: unknown, request: Pres
       throw new Error(`Could not resolve issuer DID: ${issuerDid}`);
     }
 
-    updateSession(sessionId, { issuerDid, resolvedDidDocument: didResult.didDocument });
-    updateSessionStep(sessionId, 4, 'completed', {
+    await updateSession(sessionId, { issuerDid, resolvedDidDocument: didResult.didDocument } as any);
+    await updateSessionStep(sessionId, 4, 'completed', {
       issuerDid,
       serviceEndpointCount: (didResult.didDocument.service || []).length,
       verificationMethodCount: (didResult.didDocument.verificationMethod || []).length,
     }, Date.now() - t0);
 
-    // Step 5: Discover service endpoints
-    updateSessionStep(sessionId, 5, 'running');
+    // Step 5: Discover DataService endpoint from DID
+    await updateSessionStep(sessionId, 5, 'running');
     await sleep(400);
     t0 = Date.now();
-    const insuranceEndpoint = selectEndpoint(didResult.didDocument, SERVICE_TYPES.VEHICLE_INSURANCE_DATA);
 
-    if (!insuranceEndpoint) {
-      throw new Error(`No ${SERVICE_TYPES.VEHICLE_INSURANCE_DATA} endpoint found in issuer DID document`);
+    let dataServiceResult;
+    try {
+      dataServiceResult = discoverDataService(didResult.didDocument);
+    } catch (err: any) {
+      throw new Error(`DataService discovery failed: ${err.message}`);
     }
 
-    const resolvedUrl = resolveEndpointUrl(insuranceEndpoint, { vin });
-
-    updateSession(sessionId, { selectedEndpoint: { type: insuranceEndpoint.type, url: resolvedUrl } });
-    updateSessionStep(sessionId, 5, 'completed', {
-      selectedService: insuranceEndpoint.type,
-      endpoint: resolvedUrl,
+    await updateSession(sessionId, { selectedEndpoint: { type: 'DataService', url: dataServiceResult.serviceEndpoint } } as any);
+    await updateSessionStep(sessionId, 5, 'completed', {
+      serviceId: dataServiceResult.serviceId,
+      serviceType: 'DataService',
+      endpoint: dataServiceResult.serviceEndpoint,
       allServices: (didResult.didDocument.service || []).map(s => s.type),
     }, Date.now() - t0);
 
-    // Step 6: Call manufacturer endpoint with VP
-    updateSessionStep(sessionId, 6, 'running');
+    // Step 6: Extract DSP URL and BPNL
+    await updateSessionStep(sessionId, 6, 'running');
     await sleep(300);
     t0 = Date.now();
 
-    let vehicleData: unknown;
-    try {
-      const dataResp = await axios.post(resolvedUrl, {
-        vpToken: vp,
-        requestId: request.id,
-        verifierDid: request.verifierDid,
-      }, { timeout: 15000 });
-      vehicleData = dataResp.data;
-    } catch (err: any) {
-      const msg = err.response?.data?.error || err.message;
-      throw new Error(`Manufacturer endpoint rejected request: ${msg}`);
-    }
+    const provider: EdcProviderConfig = {
+      dspUrl: dataServiceResult.dspUrl,
+      bpnl: dataServiceResult.issuerBpnl,
+    };
 
-    updateSessionStep(sessionId, 6, 'completed', {
-      httpStatus: 200,
-      vpIncluded: true,
-      endpoint: resolvedUrl,
+    await updateSessionStep(sessionId, 6, 'completed', {
+      dspUrl: provider.dspUrl,
+      providerBpnl: provider.bpnl,
+      protocol: 'dataspace-protocol-http',
     }, Date.now() - t0);
 
-    // Step 7: Manufacturer validated & returned data
-    updateSessionStep(sessionId, 7, 'running');
-    await sleep(400);
+    // Step 7: Query EDC Catalog
+    await updateSessionStep(sessionId, 7, 'running');
     t0 = Date.now();
 
-    updateSession(sessionId, {
+    const { assetId, offerId } = await queryCatalog(vin, provider);
+
+    await updateSessionStep(sessionId, 7, 'completed', {
+      assetId,
+      offerId: offerId.length > 30 ? offerId.slice(0, 30) + '...' : offerId,
+      assetRule: `asset_${vin}`,
+    }, Date.now() - t0);
+
+    // Step 8: Initiate Contract Negotiation
+    await updateSessionStep(sessionId, 8, 'running');
+    t0 = Date.now();
+
+    const negotiationId = await initiateNegotiation(offerId, assetId, provider);
+
+    await updateSessionStep(sessionId, 8, 'completed', {
+      negotiationId,
+      policyType: 'odrl:Offer',
+    }, Date.now() - t0);
+
+    // Step 9: Wait for Agreement Finalization
+    await updateSessionStep(sessionId, 9, 'running');
+    t0 = Date.now();
+
+    const contractAgreementId = await waitForAgreement(negotiationId);
+
+    await updateSessionStep(sessionId, 9, 'completed', {
+      contractAgreementId,
+      state: 'FINALIZED',
+    }, Date.now() - t0);
+
+    // Step 10: Data Transfer via EDC (transfer + EDR + auth)
+    await updateSessionStep(sessionId, 10, 'running');
+    t0 = Date.now();
+
+    const transferId = await initiateTransfer(assetId, contractAgreementId, provider);
+    await sleep(2000);
+    await getTransferProcess(contractAgreementId);
+    const { endpoint: dataPlaneEndpoint, authorization } = await getAuthCode(transferId);
+
+    await updateSessionStep(sessionId, 10, 'completed', {
+      transferId,
+      transferType: 'HttpData-PULL',
+      dataPlaneEndpoint,
+    }, Date.now() - t0);
+
+    // Step 11: Fetch DPP Data from Data Plane
+    await updateSessionStep(sessionId, 11, 'running');
+    t0 = Date.now();
+
+    const vehicleData = await fetchAssetData(dataPlaneEndpoint, authorization);
+
+    await updateSession(sessionId, {
       vehicleData,
       status: 'completed',
       completedAt: new Date().toISOString(),
-    });
-    updateSessionStep(sessionId, 7, 'completed', {
+    } as any);
+    await updateSessionStep(sessionId, 11, 'completed', {
       dataReceived: true,
       fieldsCount: vehicleData && typeof vehicleData === 'object' ? Object.keys(vehicleData).length : 0,
-      source: 'manufacturer-authoritative',
-      vpValidatedByIssuer: true,
+      source: 'edc-data-plane',
+      protocol: 'IDSA DSP + HttpData-PULL',
     }, Date.now() - t0);
 
   } catch (error: any) {
     // Find the running step and mark it failed
-    const session = db.get('presentation_sessions').find({ id: sessionId }).value() as PresentationSession;
+    const session = await prisma.presentationSession.findUnique({ where: { id: sessionId } });
     if (session) {
-      const runningStep = session.steps.find(s => s.status === 'running');
+      const steps = (session.steps as any[]) || [];
+      const runningStep = steps.find((s: any) => s.status === 'running');
       if (runningStep) {
-        updateSessionStep(sessionId, runningStep.step, 'failed', { error: error.message });
+        await updateSessionStep(sessionId, runningStep.step, 'failed', { error: error.message });
       }
     }
-    updateSession(sessionId, {
+    await updateSession(sessionId, {
       status: 'failed',
       error: error.message,
       completedAt: new Date().toISOString(),
-    });
+    } as any);
   }
 }
 

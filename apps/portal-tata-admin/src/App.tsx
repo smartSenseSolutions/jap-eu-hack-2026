@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
-import { ProtectedRoute, useAuthUser, createAuthAxios, ROLES, PortalTheme } from '@eu-jap-hack/auth'
+import { ProtectedRoute, useAuthUser, createAuthAxios, ROLES, PortalTheme, getApiBase } from '@eu-jap-hack/auth'
 import CarList from './pages/CarList'
 import CarDPP from './pages/CarDPP'
 import CreateCar from './pages/CreateCar'
 import VehicleRegistry from './pages/VehicleRegistry'
 
-const API = 'http://localhost:8000/api'
+const API = getApiBase()
 
 const adminTheme: PortalTheme = {
   portalName: 'TATA Motors Admin',
