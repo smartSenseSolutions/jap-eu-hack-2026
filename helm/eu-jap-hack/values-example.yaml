@@ -2,7 +2,7 @@
 # Usage: helm install eu-jap-hack ./helm/eu-jap-hack -f ./helm/eu-jap-hack/values-example.yaml
 
 global:
-  imageRegistry: "ghcr.io/smartsensesolutions"
+  imageRegistry: "public.ecr.aws/smartsensesolutions"
   # imagePullSecrets:
   #   - name: ghcr-pull-secret
 

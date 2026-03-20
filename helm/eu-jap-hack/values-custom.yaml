@@ -1,5 +1,5 @@
 global:
-  imageRegistry: "ghcr.io/smartsensesolutions"
+  imageRegistry: "public.ecr.aws/smartsensesolutions"
   imagePullSecrets: []
 
 # -- Ingress class name
@@ -17,7 +17,7 @@ backend:
   replicaCount: 1
   image:
     repository: eu-jap-hack/backend
-    tag: latest
+    tag: "1.0.0"
     pullPolicy: Always
   service:
     port: 8000
@@ -60,7 +60,7 @@ portalDataspace:
   replicaCount: 1
   image:
     repository: eu-jap-hack/portal-dataspace
-    tag: latest
+    tag: "1.0.0"
     pullPolicy: Always
   service:
     port: 80
@@ -78,7 +78,7 @@ portalTataAdmin:
   replicaCount: 1
   image:
     repository: eu-jap-hack/portal-tata-admin
-    tag: latest
+    tag: "1.0.0"
     pullPolicy: Always
   service:
     port: 80
@@ -96,7 +96,7 @@ portalTataPublic:
   replicaCount: 1
   image:
     repository: eu-jap-hack/portal-tata-public
-    tag: latest
+    tag: "1.0.0"
     pullPolicy: Always
   service:
     port: 80
@@ -114,7 +114,7 @@ portalWallet:
   replicaCount: 1
   image:
     repository: eu-jap-hack/portal-wallet
-    tag: latest
+    tag: "1.0.0"
     pullPolicy: Always
   service:
     port: 80
@@ -132,7 +132,7 @@ portalInsurance:
   replicaCount: 1
   image:
     repository: eu-jap-hack/portal-insurance
-    tag: latest
+    tag: "1.0.0"
     pullPolicy: Always
   service:
     port: 80
@@ -150,7 +150,7 @@ portalCompany:
   replicaCount: 1
   image:
     repository: eu-jap-hack/portal-company
-    tag: latest
+    tag: "1.0.0"
     pullPolicy: Always
   service:
     port: 80
@@ -171,7 +171,7 @@ waltidWalletApi:
   replicaCount: 1
   image:
     repository: waltid/wallet-api
-    tag: latest
+    tag: "1.0.0"
     pullPolicy: IfNotPresent
   service:
     port: 7001
@@ -189,7 +189,7 @@ waltidIssuerApi:
   replicaCount: 1
   image:
     repository: waltid/issuer-api
-    tag: latest
+    tag: "1.0.0"
     pullPolicy: IfNotPresent
   service:
     port: 7002
@@ -207,7 +207,7 @@ waltidVerifierApi:
   replicaCount: 1
   image:
     repository: waltid/verifier-api
-    tag: latest
+    tag: "1.0.0"
     pullPolicy: IfNotPresent
   service:
     port: 7003
