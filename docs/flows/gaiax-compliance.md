@@ -6,49 +6,54 @@ Before an organization can participate in the dataspace, it must prove its ident
 
 ## Actors
 
-| Actor | Role |
-|---|---|
-| Company Admin | Submits org details, triggers verification |
-| Backend `GaiaXOrchestrator` | Builds VCs, signs VPs, calls GXDCH APIs |
-| GXDCH Notary API | Issues RegistrationNumberVC |
-| GXDCH Compliance API | Validates LegalParticipantVC, issues ComplianceResult |
+| Actor                       | Role                                                  |
+| --------------------------- | ----------------------------------------------------- |
+| Company Admin               | Submits org details, triggers verification            |
+| Backend `GaiaXOrchestrator` | Builds VCs, signs VPs, calls GXDCH APIs               |
+| GXDCH Notary API            | Issues RegistrationNumberVC                           |
+| GXDCH Compliance API        | Validates LegalParticipantVC, issues ComplianceResult |
 
 ---
 
 ## Flow Diagram
 
-```
-Admin (browser)           Backend                    GXDCH (external)
-     │                       │                    Notary   Compliance
-     │                       │                      │          │
-     ├─ POST /org-credentials►│                      │          │
-     │   { company details } │                      │          │
-     │◄─ { orgCredentialId } ─┤                      │          │
-     │                       │                      │          │
-     ├─ POST /org-credentials │                      │          │
-     │    /:id/verify ───────►│                      │          │
-     │                       │                      │          │
-     │              Health check endpoints           │          │
-     │                       ├─ GET /health ────────►│          │
-     │                       ├─ GET /health ─────────────────►  │
-     │                       │                      │          │
-     │              Build LegalParticipantVC         │          │
-     │                       │                      │          │
-     │              Sign VP (RSA-SHA256)             │          │
-     │                       │                      │          │
-     │              Submit to Notary                 │          │
-     │                       ├─ POST /registration ►│          │
-     │                       │◄─ RegistrationNumberVC┤          │
-     │                       │                      │          │
-     │              Build updated VC (with RegNumVC) │          │
-     │                       │                      │          │
-     │              Submit to Compliance API         │          │
-     │                       ├─ POST /compliance ────────────► │
-     │                       │◄─ ComplianceResult ──────────── │
-     │                       │                      │          │
-     │              Save results to OrgCredential   │          │
-     │                       │                      │          │
-     │◄─ { status, complianceResult } ───────────────┤          │
+```mermaid
+sequenceDiagram
+    participant Admin as Admin (browser)
+    participant Backend as Backend
+    participant Notary as GXDCH Notary
+    participant Compliance as GXDCH Compliance
+
+    Admin->>Backend: POST /org-credentials { company details }
+    Backend-->>Admin: { orgCredentialId }
+
+    Admin->>Backend: POST /org-credentials/:id/verify
+
+    rect rgb(240, 240, 240)
+        Note over Backend, Compliance: Health Check Phase
+        Backend->>Notary: GET /health
+        Backend->>Compliance: GET /health
+    end
+
+    Note over Backend: Build LegalParticipantVC
+    Note over Backend: Sign VP (RSA-SHA256)
+
+    rect rgb(240, 240, 240)
+        Note over Backend, Notary: Notary Phase
+        Backend->>Notary: POST /registration
+        Notary-->>Backend: RegistrationNumberVC
+    end
+
+    Note over Backend: Build updated VC (with RegNumVC)
+
+    rect rgb(240, 240, 240)
+        Note over Backend, Compliance: Compliance Phase
+        Backend->>Compliance: POST /compliance
+        Compliance-->>Backend: ComplianceResult
+    end
+
+    Note over Backend: Save results to OrgCredential
+    Backend-->>Admin: { status, complianceResult }
 ```
 
 ---
@@ -102,8 +107,8 @@ The orchestrator tests all configured GXDCH endpoints before selecting which set
 
 ```typescript
 const healthySet = await orchestrator.selectHealthyEndpoints([
-  { notary: "https://notary.gxdch.eu", compliance: "https://compliance.gxdch.eu" },
-  { notary: "https://notary.gxfs.gx4fm.org", compliance: "https://compliance.gxfs.gx4fm.org" },
+    { notary: "https://notary.gxdch.eu", compliance: "https://compliance.gxdch.eu" },
+    { notary: "https://notary.gxfs.gx4fm.org", compliance: "https://compliance.gxfs.gx4fm.org" },
 ])
 ```
 
@@ -117,34 +122,34 @@ If all endpoints fail, the orchestrator throws and the `OrgCredential` is marked
 
 ```json
 {
-  "@context": [
-    "https://www.w3.org/2018/credentials/v1",
-    "https://registry.lab.gaia-x.eu/development/api/trusted-shape-registry/v1/shapes/jsonld/trustframework#"
-  ],
-  "type": ["VerifiableCredential", "gx:LegalParticipant"],
-  "issuer": "did:web:jeh-api.tx.the-sense.io",
-  "issuanceDate": "2026-03-20T10:00:00Z",
-  "credentialSubject": {
-    "id": "did:web:jeh-api.tx.the-sense.io",
-    "gx:legalName": "TATA Motors Limited",
-    "gx:registrationNumber": {
-      "gx:vatID": "DE123456789",
-      "gx:EORI": "DE1234567890",
-      "gx:leiCode": "5299001VER4RZPIG5734"
-    },
-    "gx:legalAddress": {
-      "gx:countrySubdivisionCode": "DE-BE",
-      "@type": "gx:Address"
-    },
-    "gx:headquartersAddress": {
-      "gx:countrySubdivisionCode": "DE-BE",
-      "@type": "gx:Address"
-    },
-    "gx:termsAndConditions": {
-      "gx:URL": "https://registry.lab.gaia-x.eu/development/api/trusted-shape-registry/v1/shapes/jsonld/trustframework#",
-      "gx:hash": "70c1d7a8618d..."
+    "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://registry.lab.gaia-x.eu/development/api/trusted-shape-registry/v1/shapes/jsonld/trustframework#"
+    ],
+    "type": ["VerifiableCredential", "gx:LegalParticipant"],
+    "issuer": "did:web:jeh-api.tx.the-sense.io",
+    "issuanceDate": "2026-03-20T10:00:00Z",
+    "credentialSubject": {
+        "id": "did:web:jeh-api.tx.the-sense.io",
+        "gx:legalName": "TATA Motors Limited",
+        "gx:registrationNumber": {
+            "gx:vatID": "DE123456789",
+            "gx:EORI": "DE1234567890",
+            "gx:leiCode": "5299001VER4RZPIG5734"
+        },
+        "gx:legalAddress": {
+            "gx:countrySubdivisionCode": "DE-BE",
+            "@type": "gx:Address"
+        },
+        "gx:headquartersAddress": {
+            "gx:countrySubdivisionCode": "DE-BE",
+            "@type": "gx:Address"
+        },
+        "gx:termsAndConditions": {
+            "gx:URL": "https://registry.lab.gaia-x.eu/development/api/trusted-shape-registry/v1/shapes/jsonld/trustframework#",
+            "gx:hash": "70c1d7a8618d..."
+        }
     }
-  }
 }
 ```
 
@@ -157,9 +162,9 @@ Also builds a `TermsAndConditionsVC` (required by Gaia-X compliance endpoint).
 ```typescript
 const keypair = await generateOrLoadRsaKeypair()
 const vp = {
-  "@context": ["https://www.w3.org/2018/credentials/v1"],
-  "type": ["VerifiablePresentation"],
-  "verifiableCredential": [legalParticipantVc, termsAndConditionsVc]
+    "@context": ["https://www.w3.org/2018/credentials/v1"],
+    type: ["VerifiablePresentation"],
+    verifiableCredential: [legalParticipantVc, termsAndConditionsVc],
 }
 const signedVp = await signVP(vp, keypair, "RS256")
 ```
@@ -214,15 +219,15 @@ The backend updates the `OrgCredential` record:
 
 ```typescript
 await prisma.orgCredential.update({
-  where: { id: orgCredentialId },
-  data: {
-    status: "compliant",          // or "non_compliant"
-    legalParticipantVc: legalParticipantVcJson,
-    notaryResult: registrationNumberVc,
-    complianceResult: complianceCredential,
-    issuedVc: complianceCredential,
-    verifiedAt: new Date()
-  }
+    where: { id: orgCredentialId },
+    data: {
+        status: "compliant", // or "non_compliant"
+        legalParticipantVc: legalParticipantVcJson,
+        notaryResult: registrationNumberVc,
+        complianceResult: complianceCredential,
+        issuedVc: complianceCredential,
+        verifiedAt: new Date(),
+    },
 })
 ```
 
@@ -233,6 +238,7 @@ await prisma.orgCredential.update({
 **Portal:** `portal-dataspace` → `OrgCredentialDetail`
 
 The detail page shows:
+
 - Verification status badge (compliant / non-compliant / pending / error)
 - Notary result (registration number VC)
 - Compliance result (Gaia-X compliance credential)
@@ -261,13 +267,13 @@ GAIAX_MOCK_MODE=false  # required for production
 
 ## Failure Scenarios
 
-| Scenario | Behavior |
-|---|---|
-| All GXDCH endpoints unreachable | `OrgCredential.status = "error"`, health check results logged |
-| Notary API rejects submission | `status = "error"`, notary error stored in `errorDetails` |
-| Compliance API returns non-compliant | `status = "non_compliant"`, full result stored |
-| Missing required fields (VAT, address) | `400` returned before orchestrator runs |
-| RSA key generation fails | `500` — rare, check disk permissions |
+| Scenario                               | Behavior                                                      |
+| -------------------------------------- | ------------------------------------------------------------- |
+| All GXDCH endpoints unreachable        | `OrgCredential.status = "error"`, health check results logged |
+| Notary API rejects submission          | `status = "error"`, notary error stored in `errorDetails`     |
+| Compliance API returns non-compliant   | `status = "non_compliant"`, full result stored                |
+| Missing required fields (VAT, address) | `400` returned before orchestrator runs                       |
+| RSA key generation fails               | `500` — rare, check disk permissions                          |
 
 ---
 

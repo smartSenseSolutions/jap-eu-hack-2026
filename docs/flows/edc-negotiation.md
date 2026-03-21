@@ -18,53 +18,52 @@ In a traditional API, you'd just call `GET /vehicle-data/:vin` with an API key. 
 
 ## Actors
 
-| Actor | Role |
-|---|---|
-| Consumer (Digit/Backend) | Requests data access |
-| Provider (TATA EDC) | Controls data assets + policies |
-| Backend `edcConsumerService` | Orchestrates all 7 steps |
+| Actor                        | Role                            |
+| ---------------------------- | ------------------------------- |
+| Consumer (Digit/Backend)     | Requests data access            |
+| Provider (TATA EDC)          | Controls data assets + policies |
+| Backend `edcConsumerService` | Orchestrates all 7 steps        |
 
 ---
 
 ## 7-Step Negotiation Flow
 
-```
-Consumer Backend               Provider EDC (TATA)
-     │                              │
-     │   STEP 1: Query Catalog      │
-     ├─ GET /api/v1/catalog ───────►│
-     │◄─ { assets, policies } ──────┤
-     │                              │
-     │   STEP 2: Initiate Negotiation│
-     ├─ POST /contractnegotiations ►│
-     │   { offer: { policy, asset }}│
-     │◄─ { negotiationId } ─────────┤
-     │                              │
-     │   STEP 3: Poll for Agreement │
-     ├─ GET /contractnegotiations/:id►│  (loop until AGREED or timeout)
-     │◄─ { state: "AGREED",         │
-     │     contractAgreementId } ───┤
-     │                              │
-     │   STEP 4: Initiate Transfer  │
-     ├─ POST /transferprocesses ───►│
-     │   { contractAgreementId,     │
-     │     assetId, dataDestination}│
-     │◄─ { transferId } ────────────┤
-     │                              │
-     │   STEP 5: Poll for EDR Token │
-     ├─ GET /transferprocesses/:id ►│  (loop until STARTED or timeout)
-     │◄─ { state: "STARTED",        │
-     │     edrToken } ──────────────┤
-     │                              │
-     │   STEP 6: Get Auth Code      │
-     ├─ GET /data-plane/auth ──────►│  (provider data plane)
-     │   Authorization: <edrToken>  │
-     │◄─ { authCode } ──────────────┤
-     │                              │
-     │   STEP 7: Fetch Data         │
-     ├─ GET /data-plane/data ──────►│
-     │   Authorization: <authCode>  │
-     │◄─ { dppPayload } ────────────┤
+```mermaid
+sequenceDiagram
+    participant Consumer as Consumer Backend
+    participant Provider as Provider EDC (TATA)
+
+    Note over Consumer, Provider: STEP 1: Query Catalog
+    Consumer->>Provider: GET /api/v1/catalog
+    Provider-->>Consumer: { assets, policies }
+
+    Note over Consumer, Provider: STEP 2: Initiate Negotiation
+    Consumer->>Provider: POST /contractnegotiations<br/>{ offer: { policy, asset }}
+    Provider-->>Consumer: { negotiationId }
+
+    Note over Consumer, Provider: STEP 3: Poll for Agreement
+    loop until AGREED or timeout
+        Consumer->>Provider: GET /contractnegotiations/:id
+        Provider-->>Consumer: { state: "AGREED", contractAgreementId }
+    end
+
+    Note over Consumer, Provider: STEP 4: Initiate Transfer
+    Consumer->>Provider: POST /transferprocesses<br/>{ contractAgreementId, assetId, dataDestination }
+    Provider-->>Consumer: { transferId }
+
+    Note over Consumer, Provider: STEP 5: Poll for EDR Token
+    loop until STARTED or timeout
+        Consumer->>Provider: GET /transferprocesses/:id
+        Provider-->>Consumer: { state: "STARTED", edrToken }
+    end
+
+    Note over Consumer, Provider: STEP 6: Get Auth Code
+    Consumer->>Provider: GET /data-plane/auth (Data Plane)<br/>Authorization: <edrToken>
+    Provider-->>Consumer: { authCode }
+
+    Note over Consumer, Provider: STEP 7: Fetch Data
+    Consumer->>Provider: GET /data-plane/data<br/>Authorization: <authCode>
+    Provider-->>Consumer: { dppPayload }
 ```
 
 ---
@@ -77,8 +76,8 @@ The consumer fetches the provider's catalog to find matching assets.
 
 ```typescript
 const catalog = await axios.get(`${providerDspUrl}/catalog`, {
-  headers: { 'x-api-key': EDC_API_KEY },
-  params: { 'filter[asset:prop:id]': assetId }
+    headers: { "x-api-key": EDC_API_KEY },
+    params: { "filter[asset:prop:id]": assetId },
 })
 ```
 
@@ -89,20 +88,17 @@ The catalog response lists available assets with their associated ODRL access po
 Send a contract offer to the provider:
 
 ```typescript
-const negotiation = await axios.post(
-  `${EDC_CONSUMER_MANAGEMENT_URL}/v2/contractnegotiations`,
-  {
-    "@context": { "edc": "https://w3id.org/edc/v0.0.1/ns/" },
-    "connectorId": providerBpn,
-    "connectorAddress": `${providerDspUrl}`,
-    "protocol": "dataspace-protocol-http",
-    "offer": {
-      "offerId": `${policyId}:${assetId}:${hash}`,
-      "assetId": assetId,
-      "policy": accessPolicy   // from catalog
-    }
-  }
-)
+const negotiation = await axios.post(`${EDC_CONSUMER_MANAGEMENT_URL}/v2/contractnegotiations`, {
+    "@context": { edc: "https://w3id.org/edc/v0.0.1/ns/" },
+    connectorId: providerBpn,
+    connectorAddress: `${providerDspUrl}`,
+    protocol: "dataspace-protocol-http",
+    offer: {
+        offerId: `${policyId}:${assetId}:${hash}`,
+        assetId: assetId,
+        policy: accessPolicy, // from catalog
+    },
+})
 // Response: { "@id": "negotiation-uuid" }
 ```
 
@@ -113,13 +109,11 @@ The negotiation is asynchronous. Poll until state is `AGREED`:
 ```typescript
 let state = "REQUESTED"
 while (state !== "AGREED") {
-  await sleep(EDC_NEGOTIATION_POLL_INTERVAL_MS)  // default: 5s
-  const result = await axios.get(
-    `${EDC_CONSUMER_MANAGEMENT_URL}/v2/contractnegotiations/${negotiationId}`
-  )
-  state = result.data["edc:state"]
+    await sleep(EDC_NEGOTIATION_POLL_INTERVAL_MS) // default: 5s
+    const result = await axios.get(`${EDC_CONSUMER_MANAGEMENT_URL}/v2/contractnegotiations/${negotiationId}`)
+    state = result.data["edc:state"]
 
-  if (state === "TERMINATED") throw new Error("Negotiation terminated by provider")
+    if (state === "TERMINATED") throw new Error("Negotiation terminated by provider")
 }
 const contractAgreementId = result.data["edc:contractAgreementId"]
 ```
@@ -129,17 +123,14 @@ Possible states: `REQUESTED` → `OFFERED` → `AGREED` → `VERIFIED` → `FINA
 ### Step 4: Initiate Data Transfer
 
 ```typescript
-const transfer = await axios.post(
-  `${EDC_CONSUMER_MANAGEMENT_URL}/v2/transferprocesses`,
-  {
-    "assetId": assetId,
-    "contractId": contractAgreementId,
-    "connectorAddress": providerDspUrl,
-    "connectorId": providerBpn,
-    "protocol": "dataspace-protocol-http",
-    "dataDestination": { "type": "HttpProxy" }
-  }
-)
+const transfer = await axios.post(`${EDC_CONSUMER_MANAGEMENT_URL}/v2/transferprocesses`, {
+    assetId: assetId,
+    contractId: contractAgreementId,
+    connectorAddress: providerDspUrl,
+    connectorId: providerBpn,
+    protocol: "dataspace-protocol-http",
+    dataDestination: { type: "HttpProxy" },
+})
 // Response: { "@id": "transfer-uuid" }
 ```
 
@@ -152,11 +143,9 @@ Poll until state is `STARTED` and an EDR (Endpoint Data Reference) token is avai
 ```typescript
 let transferState = "INITIAL"
 while (transferState !== "STARTED") {
-  await sleep(EDC_NEGOTIATION_POLL_INTERVAL_MS)
-  const result = await axios.get(
-    `${EDC_CONSUMER_MANAGEMENT_URL}/v2/transferprocesses/${transferId}`
-  )
-  transferState = result.data["edc:state"]
+    await sleep(EDC_NEGOTIATION_POLL_INTERVAL_MS)
+    const result = await axios.get(`${EDC_CONSUMER_MANAGEMENT_URL}/v2/transferprocesses/${transferId}`)
+    transferState = result.data["edc:state"]
 }
 const edrToken = result.data["edc:dataAddress"]["edc:authorization"]
 ```
@@ -166,10 +155,7 @@ const edrToken = result.data["edc:dataAddress"]["edc:authorization"]
 Exchange the EDR token for a short-lived auth code from the provider's data plane:
 
 ```typescript
-const authResponse = await axios.get(
-  `${providerDataPlaneUrl}/public`,
-  { headers: { Authorization: edrToken } }
-)
+const authResponse = await axios.get(`${providerDataPlaneUrl}/public`, { headers: { Authorization: edrToken } })
 const authCode = authResponse.data.token
 ```
 
@@ -178,11 +164,8 @@ const authCode = authResponse.data.token
 Use the auth code to retrieve the actual DPP data:
 
 ```typescript
-const dataResponse = await axios.get(
-  `${providerDataPlaneUrl}/public/data`,
-  { headers: { Authorization: `Bearer ${authCode}` } }
-)
-return dataResponse.data  // DPP payload
+const dataResponse = await axios.get(`${providerDataPlaneUrl}/public/data`, { headers: { Authorization: `Bearer ${authCode}` } })
+return dataResponse.data // DPP payload
 ```
 
 ---
@@ -212,18 +195,18 @@ The `onProgress` callback in `edcConsumerService.ts` handles writing these event
 
 ## Configuration
 
-| Env Var | Default | Description |
-|---|---|---|
-| `ENABLE_EDC` | `true` | Feature flag. Set `false` to return mock data |
-| `EDC_BASE_URL` | — | Provider control plane URL |
-| `EDC_API_KEY` | — | Provider API key |
-| `EDC_CONSUMER_MANAGEMENT_URL` | — | Consumer control plane URL |
-| `BPN_NUMBER` | — | Our consumer BPNL |
-| `EDC_ACCESS_POLICY_ID` | `policy_2` | Access policy to request |
-| `EDC_CONTRACT_POLICY_ID` | `policy_2` | Contract policy to use |
-| `EDC_NEGOTIATION_INITIAL_DELAY_MS` | `5000` | Delay before first poll |
-| `EDC_NEGOTIATION_POLL_INTERVAL_MS` | `5000` | Interval between polls |
-| `EDC_NEGOTIATION_MAX_RETRIES` | `3` | Max poll attempts per step |
+| Env Var                            | Default    | Description                                   |
+| ---------------------------------- | ---------- | --------------------------------------------- |
+| `ENABLE_EDC`                       | `true`     | Feature flag. Set `false` to return mock data |
+| `EDC_BASE_URL`                     | —          | Provider control plane URL                    |
+| `EDC_API_KEY`                      | —          | Provider API key                              |
+| `EDC_CONSUMER_MANAGEMENT_URL`      | —          | Consumer control plane URL                    |
+| `BPN_NUMBER`                       | —          | Our consumer BPNL                             |
+| `EDC_ACCESS_POLICY_ID`             | `policy_2` | Access policy to request                      |
+| `EDC_CONTRACT_POLICY_ID`           | `policy_2` | Contract policy to use                        |
+| `EDC_NEGOTIATION_INITIAL_DELAY_MS` | `5000`     | Delay before first poll                       |
+| `EDC_NEGOTIATION_POLL_INTERVAL_MS` | `5000`     | Interval between polls                        |
+| `EDC_NEGOTIATION_MAX_RETRIES`      | `3`        | Max poll attempts per step                    |
 
 ---
 
@@ -259,13 +242,13 @@ View via `GET /api/edc/transactions` and `GET /api/edc/transactions/:id`.
 
 ## Failure Scenarios
 
-| Scenario | Behavior |
-|---|---|
-| Provider catalog unreachable | Step 1 fails, `EdcTransaction.status = "failed"` |
-| Negotiation terminated | Step 3 throws, reason logged in transaction steps |
-| Polling timeout exceeded | `EDC_NEGOTIATION_MAX_RETRIES` exhausted, error returned |
-| Data plane auth rejected | Step 6 fails with 401 |
-| Data fetch returns empty | Step 7 completes but `data` is null |
+| Scenario                     | Behavior                                                |
+| ---------------------------- | ------------------------------------------------------- |
+| Provider catalog unreachable | Step 1 fails, `EdcTransaction.status = "failed"`        |
+| Negotiation terminated       | Step 3 throws, reason logged in transaction steps       |
+| Polling timeout exceeded     | `EDC_NEGOTIATION_MAX_RETRIES` exhausted, error returned |
+| Data plane auth rejected     | Step 6 fails with 401                                   |
+| Data fetch returns empty     | Step 7 completes but `data` is null                     |
 
 > **Debug tip:** Use `GET /api/edc/transactions/:id` to inspect the `steps` array. Each step records its response body, so you can see exactly what the EDC returned.
 

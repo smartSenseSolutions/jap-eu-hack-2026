@@ -8,58 +8,58 @@ The whole process takes ~30–60 seconds and involves 11 tracked pipeline steps.
 
 ## Actors
 
-| Actor | System | Role |
-|---|---|---|
-| Digit Agent | `portal-insurance` | Initiates verification, receives DPP |
-| Mario Sanchez | `portal-wallet` | Vehicle owner, presents VP |
-| Backend | `backend` | Orchestrates the entire pipeline |
-| TATA Motors EDC | External | Data provider (DPP holder) |
+| Actor           | System             | Role                                 |
+| --------------- | ------------------ | ------------------------------------ |
+| Digit Agent     | `portal-insurance` | Initiates verification, receives DPP |
+| Mario Sanchez   | `portal-wallet`    | Vehicle owner, presents VP           |
+| Backend         | `backend`          | Orchestrates the entire pipeline     |
+| TATA Motors EDC | External           | Data provider (DPP holder)           |
 
 ---
 
 ## Flow Diagram
 
-```
-Digit Agent (browser)    Backend :8000         Mario (browser)     TATA EDC
-      │                      │                       │                 │
-      ├─ Enter VIN ──────────┤                       │                 │
-      │                      │                       │                 │
-      ├─ POST /consent/request►│                      │                 │
-      │◄─ { consentId } ──────┤                       │                 │
-      │                      │                       │                 │
-      ├─ Poll consent/check ──┤   (notification)      │                 │
-      │   ... waiting ...    │──────────────────────►│                 │
-      │                      │                    Mario sees pending consent
-      │                      │                       │                 │
-      │                      │◄── PUT consent/approve ┤                 │
-      │                      │    (Mario approves)   │                 │
-      │◄─ consent approved ───┤                       │                 │
-      │                      │                       │                 │
-      ├─ POST /verifier ──────►│                       │                 │
-      │◄─ { sessionId, vpRequestUri } ─ ─ ─ ─ ─ ─ ─►│                 │
-      │  (show QR/deeplink)  │                     Mario opens wallet  │
-      │                      │                       │                 │
-      │                      │◄── POST wallet-vp/generate-vp ┤         │
-      │                      │    { credentials: [OwnershipVC, SelfVC] }│
-      │                      │                       │                 │
-      │                      │  [STEP 3] Parse VP     │                 │
-      │                      │  [STEP 4] Extract creds│                 │
-      │                      │  [STEP 5] Validate proof│                │
-      │                      │  [STEP 6] Resolve DID  │                 │
-      │                      │   did:web:tata.example.com              │
-      │                      │  [STEP 7] Discover DataService          │
-      │                      │  [STEP 8] Extract EDC DSP URL           │
-      │                      │  [STEP 9] Init EDC negotiation ────────►│
-      │                      │  [STEP 10] Fetch DPP data ─────────────►│
-      │                      │◄─ DPP payload ──────────────────────────┤
-      │                      │  [STEP 11] Complete    │                 │
-      │                      │                       │                 │
-      ├─ Poll verifier/status ►│                       │                 │
-      │◄─ { status: complete, vehicleData } ──────────┤                 │
-      │                      │                       │                 │
-      ├─ Display QuotePage ───┤                       │                 │
-      ├─ POST /insurance ─────►│                       │                 │
-      │◄─ { policyId, insuranceVC } ──────────────────┤                 │
+```mermaid
+sequenceDiagram
+    participant Agent as Digit Agent (browser)
+    participant Backend as Backend :8000
+    participant Mario as Mario (browser)
+    participant EDC as TATA EDC
+
+    Agent->>Backend: Enter VIN
+    Agent->>Backend: POST /consent/request
+    Backend-->>Agent: { consentId }
+
+    Note over Agent, Mario: Phase 1-2: Consent & Notification
+    Backend-->>Mario: [notification]
+    Note right of Mario: Mario sees pending consent
+    Mario->>Backend: PUT /consent/approve
+    Backend-->>Agent: consent approved
+
+    Note over Agent, Mario: Phase 3-4: VP Request & Submission
+    Agent->>Backend: POST /verifier
+    Backend-->>Mario: { sessionId, vpRequestUri } (via QR/deeplink)
+    Note right of Mario: Mario opens wallet
+    Mario->>Backend: POST /wallet-vp/generate-vp<br/>{ OwnershipVC, SelfVC }
+
+    rect rgb(240, 240, 240)
+        Note over Backend: Phase 5: Processing Pipeline
+        Note over Backend: [Steps 3-5] Parse & Validate
+        Note over Backend: [Steps 6-8] Resolve DID & Discover EDC
+        Backend->>EDC: [Step 9] Init EDC negotiation
+        Backend->>EDC: [Step 10] Fetch DPP data
+        EDC-->>Backend: DPP payload
+        Note over Backend: [Step 11] Complete
+    end
+
+    loop Polling Status
+        Agent->>Backend: GET /verifier/status
+        Backend-->>Agent: { status: complete, vehicleData }
+    end
+
+    Agent->>Backend: Display QuotePage
+    Agent->>Backend: POST /insurance
+    Backend-->>Agent: { policyId, insuranceVC }
 ```
 
 ---
@@ -95,6 +95,7 @@ PUT /api/consent/abc-123/approve
 ```
 
 The backend:
+
 1. Updates `Consent.status = "approved"`
 2. Creates an `AccessSession` (1-hour TTL)
 
@@ -115,10 +116,11 @@ POST /api/verifier
 ```
 
 Response:
+
 ```json
 {
-  "sessionId": "sess-456",
-  "vpRequestUri": "openid4vp://authorize?request_uri=..."
+    "sessionId": "sess-456",
+    "vpRequestUri": "openid4vp://authorize?request_uri=..."
 }
 ```
 
@@ -149,19 +151,19 @@ The backend generates a signed VP and submits it to the verifier pipeline.
 
 The backend processes the VP through 11 tracked steps, updating `PresentationSession.steps` after each:
 
-| Step | Name | What happens |
-|---|---|---|
-| 1 | `create_request` | PresentationRequest record created |
-| 2 | `await_vp` | Waiting for owner to submit VP |
-| 3 | `parse_vp` | Deserialize VP JWT/JSON-LD |
-| 4 | `extract_credentials` | Pull credentials array out of VP |
-| 5 | `validate_proof` | Verify VP proof signature |
-| 6 | `resolve_did` | Resolve issuer DID (`did:web:tata.example.com`) |
-| 7 | `discover_dataservice` | Find `DataService` in DID document's `service` array |
-| 8 | `extract_edc_url` | Parse EDC DSP URL + BPNL from `DataService.serviceEndpoint` |
-| 9 | `edc_negotiate` | Run 7-step EDC contract negotiation (sub-flow) |
-| 10 | `fetch_dpp` | Fetch DPP data from provider's data plane |
-| 11 | `complete` | Store `vehicleData` on session, mark complete |
+| Step | Name                   | What happens                                                |
+| ---- | ---------------------- | ----------------------------------------------------------- |
+| 1    | `create_request`       | PresentationRequest record created                          |
+| 2    | `await_vp`             | Waiting for owner to submit VP                              |
+| 3    | `parse_vp`             | Deserialize VP JWT/JSON-LD                                  |
+| 4    | `extract_credentials`  | Pull credentials array out of VP                            |
+| 5    | `validate_proof`       | Verify VP proof signature                                   |
+| 6    | `resolve_did`          | Resolve issuer DID (`did:web:tata.example.com`)             |
+| 7    | `discover_dataservice` | Find `DataService` in DID document's `service` array        |
+| 8    | `extract_edc_url`      | Parse EDC DSP URL + BPNL from `DataService.serviceEndpoint` |
+| 9    | `edc_negotiate`        | Run 7-step EDC contract negotiation (sub-flow)              |
+| 10   | `fetch_dpp`            | Fetch DPP data from provider's data plane                   |
+| 11   | `complete`             | Store `vehicleData` on session, mark complete               |
 
 ### Phase 6: Poll for Results
 
@@ -169,9 +171,9 @@ The insurance portal polls `GET /api/verifier/sess-456/status` every 3 seconds:
 
 ```json
 {
-  "status": "processing",
-  "currentStep": 9,
-  "stepName": "edc_negotiate"
+    "status": "processing",
+    "currentStep": 9,
+    "stepName": "edc_negotiate"
 }
 ```
 
@@ -213,6 +215,7 @@ POST /api/insurance
 ```
 
 The backend:
+
 1. Creates `InsurancePolicy` record
 2. Issues `InsuranceVC` via walt.id
 3. Stores VC in Mario's wallet
@@ -250,14 +253,14 @@ This `dspUrl` and `bpn` are then used to initiate the EDC negotiation. See [docs
 
 ## Failure Scenarios
 
-| Scenario | Step | Behavior |
-|---|---|---|
-| Owner denies consent | 2 | Portal shows "access denied" message |
-| VP proof invalid | 5 | Session marked `error`, frontend shows rejection reason |
-| DID document not found | 6 | Session marked `error`, "could not resolve issuer DID" |
-| No DataService in DID doc | 7 | Session marked `error`, "no EDC endpoint discovered" |
-| EDC negotiation times out | 9 | Session marked `error`, transaction record preserved for debugging |
-| DPP data fetch fails | 10 | Session marked `error`, partial transaction recorded |
+| Scenario                  | Step | Behavior                                                           |
+| ------------------------- | ---- | ------------------------------------------------------------------ |
+| Owner denies consent      | 2    | Portal shows "access denied" message                               |
+| VP proof invalid          | 5    | Session marked `error`, frontend shows rejection reason            |
+| DID document not found    | 6    | Session marked `error`, "could not resolve issuer DID"             |
+| No DataService in DID doc | 7    | Session marked `error`, "no EDC endpoint discovered"               |
+| EDC negotiation times out | 9    | Session marked `error`, transaction record preserved for debugging |
+| DPP data fetch fails      | 10   | Session marked `error`, partial transaction recorded               |
 
 The insurance portal can call `GET /api/verifier/:sessionId/steps` to get detailed error info for any step.
 
