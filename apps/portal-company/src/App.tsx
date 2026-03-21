@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
-import { ProtectedRoute, useAuthUser, ROLES, PortalTheme, getPortalDataspaceUrl } from '@eu-jap-hack/auth'
+import { ProtectedRoute, useAuthUser, ROLES, PortalTheme, getPortalDataspaceUrl, HackathonBanner } from '@eu-jap-hack/auth'
 import CompanyList from './pages/CompanyList'
 import CompanyDetail from './pages/CompanyDetail'
 
@@ -26,6 +26,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white">
+      <HackathonBanner />
       <nav className="bg-white border-b border-gray-100 px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">

@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
-import { useAuthUser, LoginPage, PortalTheme } from '@eu-jap-hack/auth'
+import { useAuthUser, LoginPage, PortalTheme, HackathonBanner } from '@eu-jap-hack/auth'
 import CarGrid from './pages/CarGrid'
 import CarDetail from './pages/CarDetail'
 import BuySuccess from './pages/BuySuccess'
@@ -27,6 +27,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFD]">
+      <HackathonBanner />
       <nav className="bg-white border-b border-[#E5EAF0] px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">

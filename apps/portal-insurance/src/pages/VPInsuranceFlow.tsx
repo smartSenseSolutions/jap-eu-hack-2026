@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { useAuthUser, createAuthAxios, getApiBase, getPortalWalletUrl } from '@eu-jap-hack/auth'
 import { calculatePremium } from '../lib/premiumCalculator'
+import UnderwritingPanel from '../components/UnderwritingPanel'
 
 const API_BASE = getApiBase()
 
-type Screen = 'start' | 'present' | 'verify' | 'quote'
+type Screen = 'start' | 'present' | 'verify' | 'underwriting' | 'quote'
 
 interface SessionStep {
   step: number
@@ -81,6 +82,7 @@ export default function VPInsuranceFlow() {
 
   // Quote state
   const [car, setCar] = useState<Record<string, unknown> | null>(null)
+  const [transformationResult, setTransformationResult] = useState<Record<string, unknown> | null>(null)
   const [issuing, setIssuing] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [consentDPP, setConsentDPP] = useState(false)
@@ -246,12 +248,15 @@ export default function VPInsuranceFlow() {
       const carOwnerId = (car.ownerId as string) || userId || 'mario-sanchez'
       const dpp = car.dpp as Record<string, unknown> | null | undefined
       const premium = calculatePremium(dpp, car.year as number)
+      const pkgRec = transformationResult?.packageRecommendation as Record<string, unknown> | undefined
+      const finalPremium = (pkgRec?.estimatedAnnualPremiumEur as number | undefined) ?? premium.total
+      const coverageType = (pkgRec?.packageName as string | undefined) ?? 'Comprehensive'
 
       const r = await api.post('/insurance', {
         userId: carOwnerId,
         vin,
-        coverageType: 'Comprehensive',
-        premiumBreakdown: premium,
+        coverageType,
+        premiumBreakdown: { ...premium, total: finalPremium },
       })
       navigate(`/policy-success/${(r.data.policy as Record<string, unknown>).policyNumber}`)
     } catch (e: unknown) {
@@ -282,7 +287,7 @@ export default function VPInsuranceFlow() {
             type="text"
             value={vinInput}
             onChange={e => { setVinInput(e.target.value); setRequestError('') }}
-            placeholder={`e.g. TATA2024NEXONEV001 or ${API_BASE}/vehicle-registry/vehicles/TATA2024NEXONEV001`}
+            placeholder={`e.g. TATA2025NEXONEV001 or ${API_BASE}/vehicle-registry/vehicles/TATA2025NEXONEV001`}
             className="w-full border border-[#E5EAF0] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#FBBC05] focus:ring-1 focus:ring-[#FBBC05]/20 transition-all"
             onKeyDown={e => e.key === 'Enter' && handleRequestProof()}
           />
@@ -300,7 +305,7 @@ export default function VPInsuranceFlow() {
           <div className="mt-4 pt-3 border-t border-[#E5EAF0]">
             <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-2">Demo Car IDs</p>
             <div className="space-y-1">
-              {['TATA2024NEXONEV001', 'TATA2024HARRIER001', 'TATA2024PUNCHEV001'].map(v => (
+              {['TATA2025NEXONEV001', 'TATA2022SAFARI0001', 'TATA2018SAFARI0002', 'TATA2020NEXON00002'].map(v => (
                 <button key={v} onClick={() => setVinInput(`${API_BASE}/vehicle-registry/vehicles/${v}`)} className="block text-[11px] font-mono text-gray-400 hover:text-[#FBBC05] transition-colors truncate max-w-full">
                   {`${API_BASE}/vehicle-registry/vehicles/${v}`}
                 </button>
@@ -626,10 +631,10 @@ export default function VPInsuranceFlow() {
             </div>
             <br />
             <button
-              onClick={() => setScreen('quote')}
+              onClick={() => setScreen('underwriting')}
               className="bg-gray-900 hover:bg-gray-800 text-white px-8 py-3 rounded-lg text-sm font-medium transition-colors"
             >
-              View Insurance Quote &rarr;
+              Analyse &amp; Underwrite Vehicle &rarr;
             </button>
           </div>
         )}
@@ -637,7 +642,23 @@ export default function VPInsuranceFlow() {
     )
   }
 
-  // ===== SCREEN 4: Quote =====
+  // ===== SCREEN 4: Underwriting =====
+  if (screen === 'underwriting' && car) {
+    return (
+      <UnderwritingPanel
+        vin={String(car.vin || extractVin(vinInput))}
+        car={car}
+        issuerDid={issuerDid}
+        onBack={() => setScreen('verify')}
+        onAccept={(result) => {
+          setTransformationResult(result as unknown as Record<string, unknown>)
+          setScreen('quote')
+        }}
+      />
+    )
+  }
+
+  // ===== SCREEN 5: Quote =====
   if (screen === 'quote' && car) {
     const quoteCar = car
     const dpp = quoteCar.dpp as Record<string, unknown> | null | undefined
@@ -649,12 +670,15 @@ export default function VPInsuranceFlow() {
     const ownerName = (dpp?.ownershipChain as Record<string, unknown>)?.currentOwner
       ? ((dpp?.ownershipChain as Record<string, unknown>)?.currentOwner as Record<string, unknown>)?.ownerName as string
       : 'Vehicle Owner'
+    const pkgRec = transformationResult?.packageRecommendation as Record<string, unknown> | undefined
+    const underwritingPremium = pkgRec?.estimatedAnnualPremiumEur as number | undefined
+    const packageName = pkgRec?.packageName as string | undefined
 
     return (
       <div className="max-w-2xl mx-auto px-6 py-10">
-        <button onClick={() => setScreen('verify')} className="text-sm text-gray-400 hover:text-gray-600 mb-8 inline-flex items-center gap-1">
+        <button onClick={() => setScreen('underwriting')} className="text-sm text-gray-400 hover:text-gray-600 mb-8 inline-flex items-center gap-1">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          Back to Verification
+          Back to Underwriting
         </button>
 
         {/* VP Exchange badge */}
@@ -678,8 +702,9 @@ export default function VPInsuranceFlow() {
               <span className="inline-block mt-2 text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">OpenID4VP + EDC Verified</span>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-semibold text-gray-900">&euro;{premium.total}</p>
+              <p className="text-3xl font-semibold text-gray-900">&euro;{underwritingPremium ?? premium.total}</p>
               <p className="text-xs text-gray-400">/year</p>
+              {packageName && <p className="text-[10px] text-orange-500 font-medium mt-0.5">{packageName}</p>}
             </div>
           </div>
         </div>
@@ -749,7 +774,7 @@ export default function VPInsuranceFlow() {
           ))}
           <div className="flex justify-between pt-4 mt-2 border-t border-gray-200">
             <span className="text-sm font-semibold text-gray-900">Annual Premium</span>
-            <span className="text-lg font-bold text-orange-500">&euro;{premium.total}</span>
+            <span className="text-lg font-bold text-orange-500">&euro;{underwritingPremium ?? premium.total}</span>
           </div>
         </div>
 
@@ -757,7 +782,7 @@ export default function VPInsuranceFlow() {
           onClick={() => setShowConfirm(true)}
           className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3.5 rounded-lg text-sm font-medium transition-colors"
         >
-          Get Comprehensive Coverage &mdash; &euro;{premium.total}/year
+          Get {packageName ?? 'Comprehensive'} Coverage &mdash; &euro;{underwritingPremium ?? premium.total}/year
         </button>
         <p className="text-center text-[10px] text-gray-300 mt-2">Insurance VC issued to {ownerName}'s wallet</p>
 
@@ -787,7 +812,7 @@ export default function VPInsuranceFlow() {
                   </div>
                   <div className="flex justify-between border-t border-gray-200 pt-2 mt-2">
                     <span className="text-sm font-medium text-gray-700">Annual Premium</span>
-                    <span className="text-sm font-bold text-orange-500">&euro;{premium.total}</span>
+                    <span className="text-sm font-bold text-orange-500">&euro;{underwritingPremium ?? premium.total}</span>
                   </div>
                 </div>
 

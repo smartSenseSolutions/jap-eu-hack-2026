@@ -146,12 +146,21 @@ export default function CarList() {
                     )}
                   </td>
                   <td className="px-5 py-3">
-                    <button
-                      onClick={() => navigate(`/car/${car.vin}`)}
-                      className="text-[#4285F4] hover:text-[#3367D6] font-medium"
-                    >
-                      DPP &rarr;
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => navigate(`/car/${car.vin}`)}
+                        className="text-[#4285F4] hover:text-[#3367D6] font-medium"
+                      >
+                        DPP &rarr;
+                      </button>
+                      <button
+                        onClick={() => navigate('/create', { state: { duplicateFrom: car } })}
+                        className="text-[10px] text-gray-400 hover:text-gray-600 border border-gray-200 px-2 py-0.5 rounded hover:bg-gray-50 transition-colors"
+                        title="Duplicate this car's DPP as a new entry"
+                      >
+                        Duplicate
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -15,6 +15,7 @@ import caddeRouter from './routes/cadde';
 import vehicleRegistryRouter from './routes/vehicle-registry';
 import verifierRouter from './routes/verifier';
 import walletVPRouter from './routes/wallet-vp';
+import underwritingRouter from './routes/underwriting';
 import { GaiaXClient, getVPSigner } from './services/gaiax';
 import prisma from './db';
 import { OrgCredentialRecord } from './services/gaiax/types';
@@ -46,6 +47,7 @@ app.use('/api/cadde', caddeRouter);
 app.use('/api/vehicle-registry', vehicleRegistryRouter);
 app.use('/api/verifier', verifierRouter);
 app.use('/api/wallet-vp', walletVPRouter);
+app.use('/api/underwriting', underwritingRouter);
 
 // Well-known endpoint for vehicle registry discovery
 app.get('/.well-known/vehicle-registry', (_req, res) => {

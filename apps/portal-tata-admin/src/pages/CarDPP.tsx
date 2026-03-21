@@ -191,6 +191,13 @@ export default function CarDPP() {
               car.status === 'available' ? 'text-emerald-500 bg-emerald-50' : 'text-gray-400 bg-gray-50'
             }`}>{String(car.status)}</span>
             {car.ownerId ? <p className="text-[10px] text-gray-400 mt-1">Owner: {String(car.ownerId)}</p> : null}
+            <button
+              onClick={() => navigate('/create', { state: { duplicateFrom: car } })}
+              className="mt-2 text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 hover:text-gray-700 transition-colors inline-flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+              Duplicate DPP
+            </button>
           </div>
         </div>
 

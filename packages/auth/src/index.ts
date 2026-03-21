@@ -23,3 +23,4 @@ export { ProtectedRoute } from './ProtectedRoute';
 export { createAuthAxios } from './authAxios';
 export { LoginPage } from './LoginPage';
 export type { PortalTheme } from './LoginPage';
+export { HackathonBanner } from './HackathonBanner';

@@ -5,6 +5,18 @@ import { useAuthUser, createAuthAxios, getApiBase } from '@eu-jap-hack/auth'
 
 const API_BASE = getApiBase()
 
+// Car images — pristine for new cars, real used car photos for older/damaged ones
+const carImages: Record<string, string> = {
+  'TATA2025NEXONEV001': 'https://imgd.aeplcdn.com/664x374/n/cw/ec/149123/nexon-ev-exterior-right-front-three-quarter-80.png?isig=0&q=80',
+  'TATA2024CURVVEV001': 'https://imgd.aeplcdn.com/664x374/n/cw/ec/115617/curvv-ev-exterior-right-front-three-quarter-8.png?isig=0&q=80',
+  'TATA2023HARRIER001': 'https://imgd.aeplcdn.com/664x374/n/cw/ec/139139/harrier-exterior-right-front-three-quarter-7.png?isig=0&q=80',
+  'TATA2022SAFARI0001': 'https://images10.gaadi.com/usedcar_image/5186594/original/processed_de9f26c2-1c91-44e3-9f8f-3c1c99a8ca67.jpg?imwidth=640',
+  'TATA2020NEXON00002': 'https://images10.gaadi.com/usedcar_image/5173722/original/processed_74be42ef-c68f-47b4-a979-db26f0d5e1d5.jpg?imwidth=640',
+  'TATA2025PUNCHEV001': 'https://imgd.aeplcdn.com/664x374/n/cw/ec/217141/punch-ev-facelift-exterior-right-front-three-quarter-4.png?isig=0&q=80',
+  'TATA2018SAFARI0002': 'https://images10.gaadi.com/usedcar_image/5045581/original/processed_fc3e7b38-7001-4583-9215-8e1400f72006.jpg?imwidth=640',
+  'TATA2024TIAGOEV01': 'https://imgd.aeplcdn.com/664x374/n/cw/ec/40453/tiago-ev-exterior-right-front-three-quarter-15.png?isig=0&q=80',
+}
+
 function renderDPPValue(value: unknown, depth: number = 0): JSX.Element {
   if (value === null || value === undefined) return <span className="text-gray-300">&mdash;</span>
   if (typeof value === 'boolean') return <span className={value ? 'text-emerald-600 font-medium' : 'text-red-400'}>{value ? 'Yes' : 'No'}</span>
@@ -142,6 +154,15 @@ export default function CarDetail() {
 
       {/* Header card */}
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden mb-8">
+        {carImages[String(car.vin)] && (
+          <div className="h-56 bg-[#F6F8FA] overflow-hidden">
+            <img
+              src={carImages[String(car.vin)]}
+              alt={`${String(car.make)} ${String(car.model)}`}
+              className="w-full h-full object-cover object-center"
+            />
+          </div>
+        )}
         <div className="p-8">
           <div className="flex justify-between items-start">
             <div>

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import axios from 'axios'
 import { getApiBase } from '@eu-jap-hack/auth'
 
@@ -41,8 +41,148 @@ function generateUUID(): string {
   })
 }
 
+// ── Custom key-value entries supporting n-level nesting ──────────────────────
+
+interface CustomEntry {
+  id: string
+  key: string
+  value: string
+  type: 'text' | 'number' | 'boolean' | 'group'
+  children: CustomEntry[]
+}
+
+function newEntry(): CustomEntry {
+  return { id: generateUUID().slice(0, 8), key: '', value: '', type: 'text', children: [] }
+}
+
+function customEntriesToObject(entries: CustomEntry[]): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const e of entries) {
+    if (!e.key) continue
+    if (e.type === 'group') {
+      result[e.key] = customEntriesToObject(e.children)
+    } else if (e.type === 'number') {
+      result[e.key] = Number(e.value) || 0
+    } else if (e.type === 'boolean') {
+      result[e.key] = e.value === 'true'
+    } else {
+      result[e.key] = e.value
+    }
+  }
+  return result
+}
+
+function objectToCustomEntries(obj: Record<string, unknown>): CustomEntry[] {
+  return Object.entries(obj).map(([key, val]) => {
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      return { id: generateUUID().slice(0, 8), key, value: '', type: 'group' as const, children: objectToCustomEntries(val as Record<string, unknown>) }
+    }
+    if (typeof val === 'boolean') {
+      return { id: generateUUID().slice(0, 8), key, value: String(val), type: 'boolean' as const, children: [] }
+    }
+    if (typeof val === 'number') {
+      return { id: generateUUID().slice(0, 8), key, value: String(val), type: 'number' as const, children: [] }
+    }
+    return { id: generateUUID().slice(0, 8), key, value: String(val ?? ''), type: 'text' as const, children: [] }
+  })
+}
+
+const inputClassGlobal = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400 transition-colors'
+
+function CustomFieldEditor({
+  entries, onChange, depth = 0,
+}: { entries: CustomEntry[]; onChange: (updated: CustomEntry[]) => void; depth?: number }) {
+  const update = (idx: number, partial: Partial<CustomEntry>) => {
+    const next = [...entries]
+    next[idx] = { ...next[idx], ...partial }
+    if (partial.type === 'group' && next[idx].children.length === 0) {
+      next[idx].children = [newEntry()]
+    }
+    if (partial.type && partial.type !== 'group') {
+      next[idx].children = []
+    }
+    onChange(next)
+  }
+  const remove = (idx: number) => onChange(entries.filter((_, i) => i !== idx))
+  const add = () => onChange([...entries, newEntry()])
+
+  return (
+    <div className={depth > 0 ? 'ml-5 pl-4 border-l-2 border-gray-200' : ''}>
+      {entries.map((e, i) => (
+        <div key={e.id} className="mb-2.5">
+          <div className="flex items-start gap-2">
+            <div className="flex-1 grid grid-cols-[1fr_auto_1fr] gap-2 items-start">
+              <input
+                placeholder="Key name"
+                value={e.key}
+                onChange={ev => update(i, { key: ev.target.value })}
+                className={inputClassGlobal}
+              />
+              <select
+                value={e.type}
+                onChange={ev => update(i, { type: ev.target.value as CustomEntry['type'] })}
+                className="border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 focus:outline-none focus:border-blue-400"
+              >
+                <option value="text">Text</option>
+                <option value="number">Number</option>
+                <option value="boolean">Boolean</option>
+                <option value="group">Group (nested)</option>
+              </select>
+              {e.type === 'group' ? (
+                <span className="text-[10px] text-gray-400 py-2.5">→ nested fields below</span>
+              ) : e.type === 'boolean' ? (
+                <select
+                  value={e.value}
+                  onChange={ev => update(i, { value: ev.target.value })}
+                  className={inputClassGlobal}
+                >
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              ) : (
+                <input
+                  placeholder="Value"
+                  type={e.type === 'number' ? 'number' : 'text'}
+                  value={e.value}
+                  onChange={ev => update(i, { value: ev.target.value })}
+                  className={inputClassGlobal}
+                />
+              )}
+            </div>
+            <button onClick={() => remove(i)} className="text-red-400 hover:text-red-600 mt-2 text-xs flex-shrink-0">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            </button>
+          </div>
+          {e.type === 'group' && (
+            <div className="mt-2">
+              <CustomFieldEditor
+                entries={e.children}
+                onChange={children => update(i, { children })}
+                depth={depth + 1}
+              />
+            </div>
+          )}
+        </div>
+      ))}
+      <button
+        onClick={add}
+        className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors mt-1 ${
+          depth === 0
+            ? 'text-blue-600 border-blue-200 hover:bg-blue-50'
+            : 'text-gray-500 border-gray-200 hover:bg-gray-50'
+        }`}
+      >
+        + Add {depth > 0 ? 'nested ' : ''}field
+      </button>
+    </div>
+  )
+}
+
+// ── Main Component ──────────────────────────────────────────────────────────
+
 export default function CreateCar() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [showGuidelines, setShowGuidelines] = useState(false)
@@ -109,6 +249,126 @@ export default function CreateCar() {
     emissionsTestDate: new Date().toISOString().slice(0, 10),
     safetyRatingNcap: 5, homologationStatus: 'Approved'
   })
+
+  // Step 10: Custom Additional Data
+  const [customFields, setCustomFields] = useState<CustomEntry[]>([])
+
+  // ── Duplicate pre-fill from router state ───────────────────────────────────
+  const duplicateFrom = (location.state as { duplicateFrom?: Record<string, unknown> } | null)?.duplicateFrom
+  useEffect(() => {
+    if (!duplicateFrom) return
+    const d = duplicateFrom
+    const dpp = (d.dpp ?? {}) as Record<string, unknown>
+    const ident = (dpp.identification ?? {}) as Record<string, unknown>
+    const identType = (ident.type ?? {}) as Record<string, unknown>
+    const op = (dpp.operation ?? {}) as Record<string, unknown>
+    const mfg = (op.manufacturer ?? {}) as Record<string, unknown>
+    const perf = (dpp.performance ?? {}) as Record<string, unknown>
+    const emis = (dpp.emissions ?? {}) as Record<string, unknown>
+    const sus = (dpp.sustainability ?? {}) as Record<string, unknown>
+    const mat = (dpp.materials ?? {}) as Record<string, unknown>
+    const chars = (dpp.characteristics ?? {}) as Record<string, unknown>
+    const lifespan = (chars.lifespan ?? {}) as Record<string, unknown>
+    const dims = (chars.physicalDimensions ?? {}) as Record<string, unknown>
+    const soh = (dpp.stateOfHealth ?? {}) as Record<string, unknown>
+    const comp = (dpp.compliance ?? {}) as Record<string, unknown>
+    const svcHist = (dpp.serviceHistory ?? {}) as Record<string, unknown>
+    const dmgHist = (dpp.damageHistory ?? {}) as Record<string, unknown>
+
+    setIdentification({
+      manufacturerPartId: String(identType.manufacturerPartId ?? ''),
+      nameAtManufacturer: String(identType.nameAtManufacturer ?? ''),
+      serial: '',  // VIN must be new
+      make: String(d.make ?? 'TATA'),
+      model: String(d.model ?? ''),
+      variant: String(d.variant ?? ''),
+      year: Number(d.year) || 2025,
+      color: String(ident.color ?? ''),
+      bodyType: String(ident.bodyType ?? 'SUV'),
+      price: Number(d.price) || 25000,
+      codes: Array.isArray(ident.codes) ? (ident.codes as string[]).join(', ') : '',
+      dataCarrier: '',
+      classification: String(ident.classification ?? 'Passenger Vehicle'),
+    })
+    setOperation({
+      manufacturerBpnl: String(mfg.bpnl ?? 'BPNL00000003TATA'),
+      manufacturerName: String(mfg.name ?? 'TATA Motors Limited'),
+      facility: String(op.facility ?? ''),
+      manufacturingDate: String(op.manufacturingDate ?? new Date().toISOString().slice(0, 10)),
+      country: String(op.country ?? 'India'),
+      importInfo: String(op.importInfo ?? ''),
+      certificationBody: String(op.certificationBody ?? 'ARAI'),
+    })
+    setPerformance({
+      motorType: String(perf.motorType ?? 'BEV'),
+      batteryCapacityKwh: Number(perf.batteryCapacityKwh) || 40,
+      rangeKm: Number(perf.rangeKm) || 350,
+      chargingStandard: String(perf.chargingStandard ?? 'CCS2'),
+      chargingTimeHours: Number(perf.chargingTimeHours) || 8,
+      transmissionType: String(perf.transmissionType ?? 'Automatic'),
+      powerKw: Number(perf.powerKw) || 105,
+      torqueNm: Number(perf.torqueNm) || 215,
+      topSpeedKmh: Number(perf.topSpeedKmh) || 150,
+      acceleration0to100: Number(perf.acceleration0to100) || 9.0,
+    })
+    setEmissions({
+      co2GPerKm: Number(emis.co2GPerKm) || 0,
+      euroStandard: String(emis.euroStandard ?? 'Euro 6d'),
+      energyLabel: String(emis.energyLabel ?? 'A+++'),
+      electricConsumptionKwhPer100km: Number(emis.electricConsumptionKwhPer100km) || 15.5,
+    })
+    setSustainability({
+      carbonFootprint: Number(sus.carbonFootprint) || 0,
+      materialFootprint: Number(sus.materialFootprint) || 0,
+      durabilityScore: Number(sus.durabilityScore) || 8.0,
+      repairabilityScore: Number(sus.repairabilityScore) || 7.5,
+      status: String(sus.status ?? 'Assessed'),
+    })
+    setMaterials({
+      recycledMaterialPercent: Number(mat.recycledMaterialPercent) || 25,
+      batteryChemistry: String(mat.batteryChemistry ?? 'NMC'),
+      hazardousSubstances: Array.isArray(mat.hazardousSubstances) ? (mat.hazardousSubstances as string[]).join(', ') : '',
+      recyclabilityPercent: Number(mat.recyclabilityPercent) || 85,
+      sustainabilityCertifications: Array.isArray(mat.sustainabilityCertifications) ? (mat.sustainabilityCertifications as string[]).join(', ') : '',
+      batterySupplier: String(mat.batterySupplier ?? ''),
+      batteryCountryOfOrigin: String(mat.batteryCountryOfOrigin ?? ''),
+      materialComposition: Array.isArray(mat.materialComposition) ? (mat.materialComposition as string[]).join(', ') : '',
+      substancesOfConcern: Array.isArray(mat.substancesOfConcern) ? (mat.substancesOfConcern as string[]).join(', ') : '',
+    })
+    setCharacteristics({
+      lifespanYears: Number(lifespan.years) || 15,
+      lifespanKm: Number(lifespan.km) || 300000,
+      lengthMm: Number(dims.lengthMm) || 4000,
+      widthMm: Number(dims.widthMm) || 1810,
+      heightMm: Number(dims.heightMm) || 1620,
+      weightKg: Number(dims.weightKg) || 1600,
+    })
+    setStateOfHealth({
+      overallRating: Number(soh.overallRating) || 9.5,
+      exteriorCondition: Number(soh.exteriorCondition) || 9.5,
+      interiorCondition: Number(soh.interiorCondition) || 9.5,
+      mechanicalCondition: Number(soh.mechanicalCondition) || 9.5,
+      batteryHealthPercent: Number(soh.batteryHealthPercent) || 100,
+      inspectionDate: String(soh.inspectionDate ?? new Date().toISOString().slice(0, 10)),
+      inspectedBy: String(soh.inspectedBy ?? ''),
+      notes: String(soh.notes ?? ''),
+    })
+    setServices(Array.isArray(svcHist.records) ? (svcHist.records as ServiceRecord[]) : [])
+    setDamages(Array.isArray(dmgHist.incidents) ? (dmgHist.incidents as DamageIncident[]) : [])
+    setCompliance({
+      euTypeApprovalNumber: String(comp.euTypeApprovalNumber ?? ''),
+      roadworthyCertificateExpiry: String(comp.roadworthyCertificateExpiry ?? ''),
+      emissionsTestDate: String(comp.emissionsTestDate ?? new Date().toISOString().slice(0, 10)),
+      safetyRatingNcap: Number(comp.safetyRatingNcap) || 5,
+      homologationStatus: String(comp.homologationStatus ?? 'Approved'),
+    })
+    // Load custom additionalData if present
+    const additional = dpp.additionalData as Record<string, unknown> | undefined
+    if (additional && typeof additional === 'object' && !Array.isArray(additional) && Object.keys(additional).length > 0) {
+      setCustomFields(objectToCustomEntries(additional))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const addService = () => {
     setServices([...services, { date: '', mileageKm: 0, serviceType: 'Regular Service', servicedBy: '', notes: '', cost: 0 }])
@@ -230,7 +490,7 @@ export default function CreateCar() {
             applicable: false
           },
           sources: [],
-          additionalData: [],
+          additionalData: customFields.length > 0 ? customEntriesToObject(customFields) : [],
           performance: performance,
           emissions: emissions,
           stateOfHealth: stateOfHealth,
@@ -284,7 +544,7 @@ export default function CreateCar() {
   const labelClass = 'block text-[11px] text-gray-400 mb-1 uppercase tracking-wide'
 
   const steps = [
-    'Identification', 'Operation', 'Performance', 'Emissions', 'Sustainability', 'Materials', 'Characteristics', 'State of Health', 'History', 'Compliance'
+    'Identification', 'Operation', 'Performance', 'Emissions', 'Sustainability', 'Materials', 'Characteristics', 'State of Health', 'History', 'Compliance', 'Custom Data'
   ]
 
   return (
@@ -295,8 +555,12 @@ export default function CreateCar() {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             Back to Fleet
           </button>
-          <h1 className="text-xl font-semibold text-gray-900">Create New Car</h1>
-          <p className="text-xs text-gray-400 mt-0.5">DPP structure aligned with Catena-X CX-0143 standard</p>
+          <h1 className="text-xl font-semibold text-gray-900">{duplicateFrom ? 'Duplicate Car' : 'Create New Car'}</h1>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {duplicateFrom
+              ? `Pre-filled from ${String(duplicateFrom.make)} ${String(duplicateFrom.model)} (${String(duplicateFrom.vin)}) — enter a new VIN`
+              : 'DPP structure aligned with Catena-X CX-0143 standard'}
+          </p>
         </div>
         <button onClick={() => setShowGuidelines(!showGuidelines)} className="text-xs text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
           {showGuidelines ? 'Hide' : 'View'} Catena-X Guidelines
@@ -555,6 +819,40 @@ export default function CreateCar() {
               <option>Approved</option><option>Pending</option><option>Rejected</option>
             </select>
           </div>
+        </div>
+      )}
+
+      {/* Step 10: Custom Data */}
+      {step === 10 && (
+        <div className="space-y-4">
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+            <p className="text-[11px] text-purple-700">
+              Add any additional custom data fields to the DPP. You can create nested groups for hierarchical data. These will be stored under the <code className="bg-purple-100 px-1 rounded">additionalData</code> section.
+            </p>
+          </div>
+          {customFields.length === 0 ? (
+            <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              <p className="text-sm text-gray-400 mb-3">No custom fields yet</p>
+              <button
+                onClick={() => setCustomFields([newEntry()])}
+                className="text-xs font-medium text-purple-600 border border-purple-200 px-4 py-2 rounded-lg hover:bg-purple-50 transition-colors"
+              >
+                + Add Custom Field
+              </button>
+            </div>
+          ) : (
+            <CustomFieldEditor entries={customFields} onChange={setCustomFields} />
+          )}
+
+          {/* Preview */}
+          {customFields.some(e => e.key) && (
+            <div className="mt-4">
+              <p className="text-[10px] text-gray-400 uppercase tracking-widest font-medium mb-2">Preview (JSON)</p>
+              <pre className="text-[9px] bg-gray-900 text-emerald-400 rounded-lg p-3 overflow-auto max-h-40 font-mono leading-relaxed">
+                {JSON.stringify(customEntriesToObject(customFields), null, 2)}
+              </pre>
+            </div>
+          )}
         </div>
       )}
 

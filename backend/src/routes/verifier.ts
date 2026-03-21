@@ -103,7 +103,7 @@ router.post('/presentation-request', authenticate, async (req, res) => {
       requestedClaims: requestedClaims || ['vin', 'make', 'model', 'year', 'ownerId'],
       callbackUrl: `${REGISTRY_BASE}/api/verifier/callback`,
       status: 'pending',
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min
+      expiresAt: new Date(Date.now() + 1 * 60 * 1000), // 1 min
     },
   });
 

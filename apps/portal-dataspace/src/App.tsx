@@ -1,5 +1,5 @@
 import { Routes, Route, NavLink } from 'react-router-dom'
-import { ProtectedRoute, useAuthUser, ROLES, PortalTheme } from '@eu-jap-hack/auth'
+import { ProtectedRoute, useAuthUser, ROLES, PortalTheme, HackathonBanner } from '@eu-jap-hack/auth'
 import CompanyRegistration from './pages/CompanyRegistration'
 import RegistrationSuccess from './pages/RegistrationSuccess'
 import OrgCredentialsList from './pages/OrgCredentialsList'
@@ -39,6 +39,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFD]">
+      <HackathonBanner />
       <nav className="bg-white border-b border-[#E5EAF0] px-6 py-0 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-6">

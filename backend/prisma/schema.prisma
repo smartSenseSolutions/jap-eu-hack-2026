@@ -205,6 +205,28 @@ model EdcTransaction {
   @@map("edc_transactions")
 }
 
+model UnderwritingTransformationRun {
+  id                   String    @id @default(uuid())
+  vin                  String
+  sourceProfile        String    @default("TATA_DPP_v1")
+  targetProfile        String    @default("DIGIT_JASPAR_v1")
+  sourcePayload        Json
+  transformedPayload   Json?
+  transformationReport Json?
+  completenessPercent  Float?
+  totalScore           Float?
+  scoreBand            String?
+  factorScores         Json?
+  recommendedPackageId String?
+  recommendationReason String?
+  status               String    @default("pending")
+  confirmedAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@map("underwriting_transformation_runs")
+}
+
 model VehicleAuditLog {
   id        String   @id @default(uuid())
   vin       String
