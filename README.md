@@ -7,7 +7,7 @@
 
 # Universal Dataspace Interoperability Gateway
 
-### *One gateway. Every dataspace. Trusted everywhere.*
+### _One gateway. Every dataspace. Trusted everywhere._
 
 > Bridging EU (Eclipse Dataspace Connector) and Japanese (CADDE) data ecosystems through DID-based discovery, protocol translation, and verifiable trust — demonstrated via a real-world cross-border vehicle insurance use case.
 
@@ -36,6 +36,7 @@ The **Universal Dataspace Interoperability Gateway** acts as a **protocol transl
 ```
 
 **What the gateway does:**
+
 - **Discovers** data services via DID resolution (no hardcoded endpoints)
 - **Translates** between EDC and CADDE protocols seamlessly
 - **Transforms** data formats (EU Digital Product Passport → Japanese JASPAR standard)
@@ -49,11 +50,11 @@ We demonstrate the gateway through an end-to-end scenario where a **Japanese ins
 
 ### The Actors
 
-| Actor | Role | DID |
-|---|---|---|
-| **TATA Motors** | Vehicle manufacturer & data provider (EU) | `did:eu-dataspace:company-tata-001` |
-| **Digit Insurance** | Insurer & data consumer (Japan) | `did:eu-dataspace:company-digit-001` |
-| **Mario Sanchez** | Vehicle owner & consent holder | `did:smartsense:mario-sanchez` |
+| Actor               | Role                                      | DID                                  |
+| ------------------- | ----------------------------------------- | ------------------------------------ |
+| **TATA Motors**     | Vehicle manufacturer & data provider (EU) | `did:eu-dataspace:company-tata-001`  |
+| **Digit Insurance** | Insurer & data consumer (Japan)           | `did:eu-dataspace:company-digit-001` |
+| **Mario Sanchez**   | Vehicle owner & consent holder            | `did:smartsense:mario-sanchez`       |
 
 ### Demo Flow (Step by Step)
 
@@ -76,6 +77,8 @@ We demonstrate the gateway through an end-to-end scenario where a **Japanese ins
 ---
 
 ## Architecture
+
+![Architecture](docs/images/architecture.png)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -102,12 +105,12 @@ We demonstrate the gateway through an end-to-end scenario where a **Japanese ins
 
 ### The 4-Layer Gateway
 
-| Layer | What It Does | Implementation |
-|---|---|---|
-| **Discovery** | Resolves DIDs to find data service endpoints | `did:web`, `did:eu-dataspace`, `did:smartsense` → DID Documents with `DataService` endpoints |
-| **Protocol Translation** | Bridges EDC ↔ CADDE negotiation protocols | EDC consumer service handles catalog query, contract negotiation, transfer, and EDR exchange |
-| **Data Transformation** | Converts between data standards | DPP-to-JASPAR transformer maps 24 fields across 7 categories with data quality tracking |
-| **Trust Enforcement** | Ensures all parties are verified and consent is granted | Gaia-X compliance VCs, OpenID4VP verification, nonce-based challenges, 1-hour access sessions |
+| Layer                    | What It Does                                            | Implementation                                                                                |
+| ------------------------ | ------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **Discovery**            | Resolves DIDs to find data service endpoints            | `did:web`, `did:eu-dataspace`, `did:smartsense` → DID Documents with `DataService` endpoints  |
+| **Protocol Translation** | Bridges EDC ↔ CADDE negotiation protocols               | EDC consumer service handles catalog query, contract negotiation, transfer, and EDR exchange  |
+| **Data Transformation**  | Converts between data standards                         | DPP-to-JASPAR transformer maps 24 fields across 7 categories with data quality tracking       |
+| **Trust Enforcement**    | Ensures all parties are verified and consent is granted | Gaia-X compliance VCs, OpenID4VP verification, nonce-based challenges, 1-hour access sessions |
 
 ---
 
@@ -127,15 +130,15 @@ We demonstrate the gateway through an end-to-end scenario where a **Japanese ins
 
 ## Security & Trust Model
 
-| Mechanism | Purpose | Detail |
-|---|---|---|
-| **Nonce-Based Challenges** | Prevent VP replay attacks | Random nonce embedded in every presentation request with expiry |
-| **RSA-2048 JWS Signing** | Cryptographic proof of origin | Persistent keypairs in `.keys/`, RS256 algorithm, x5c certificate chain |
-| **Consent Gates** | User-controlled data sharing | Explicit approval required; denied requests are logged for audit |
-| **AccessSession TTL** | Time-bound data access | 1-hour expiry on all access sessions; no persistent tokens |
-| **ODRL Policies** | Provider-controlled usage rules | Embedded in EDC catalog; enforced before any data transfer |
-| **Gaia-X Compliance VCs** | Organizational trust | Notary-signed, registry-validated, SHACL-checked credentials |
-| **VP Proof Validation** | Credential authenticity | JWT signature verification against issuer's published public key |
+| Mechanism                  | Purpose                         | Detail                                                                  |
+| -------------------------- | ------------------------------- | ----------------------------------------------------------------------- |
+| **Nonce-Based Challenges** | Prevent VP replay attacks       | Random nonce embedded in every presentation request with expiry         |
+| **RSA-2048 JWS Signing**   | Cryptographic proof of origin   | Persistent keypairs in `.keys/`, RS256 algorithm, x5c certificate chain |
+| **Consent Gates**          | User-controlled data sharing    | Explicit approval required; denied requests are logged for audit        |
+| **AccessSession TTL**      | Time-bound data access          | 1-hour expiry on all access sessions; no persistent tokens              |
+| **ODRL Policies**          | Provider-controlled usage rules | Embedded in EDC catalog; enforced before any data transfer              |
+| **Gaia-X Compliance VCs**  | Organizational trust            | Notary-signed, registry-validated, SHACL-checked credentials            |
+| **VP Proof Validation**    | Credential authenticity         | JWT signature verification against issuer's published public key        |
 
 ---
 
@@ -161,27 +164,27 @@ serviceHistory                   →    technicalCondition.maintenanceLog
 
 ### 9-Factor Scoring Engine (100 Points)
 
-| # | Factor | Max Points | Scoring Logic |
-|---|---|---|---|
-| 1 | **Vehicle Age** | 15 | 0 yrs → 15 pts … 10+ yrs → 0 pts |
-| 2 | **Safety Rating** | 15 | 5★ NCAP → 15 pts, 4★ → 12, 3★ → 9, 2★ → 6, 1★ → 3 |
-| 3 | **Regulatory Compliance** | 10 | Type approval +3, roadworthy +3, homologation +2, Euro 6/BEV +2 |
-| 4 | **Powertrain & Battery** | 10 | Battery SoH ≥95% → 10 pts (EV-specific logic) |
-| 5 | **Sustainability** | 5 | BEV → 3 pts, CO₂ <50g/km → 2 pts, efficiency label bonus |
-| 6 | **Ownership Confidence** | 15 | Manufacturer credential +3, single owner → 8 pts, data source +2 |
-| 7 | **Mileage & Usage** | 15 | ≤5K km → 15 pts … >150K km → 1 pt |
-| 8 | **Damage History** | 10 | 0 incidents → 10 pts, major damage penalty, unrepaired deduction |
-| 9 | **Data Completeness** | 5 | ≥90% fields → 5 pts, ≥80% → 4 pts, ≥70% → 3 pts |
+| #   | Factor                    | Max Points | Scoring Logic                                                    |
+| --- | ------------------------- | ---------- | ---------------------------------------------------------------- |
+| 1   | **Vehicle Age**           | 15         | 0 yrs → 15 pts … 10+ yrs → 0 pts                                 |
+| 2   | **Safety Rating**         | 15         | 5★ NCAP → 15 pts, 4★ → 12, 3★ → 9, 2★ → 6, 1★ → 3                |
+| 3   | **Regulatory Compliance** | 10         | Type approval +3, roadworthy +3, homologation +2, Euro 6/BEV +2  |
+| 4   | **Powertrain & Battery**  | 10         | Battery SoH ≥95% → 10 pts (EV-specific logic)                    |
+| 5   | **Sustainability**        | 5          | BEV → 3 pts, CO₂ <50g/km → 2 pts, efficiency label bonus         |
+| 6   | **Ownership Confidence**  | 15         | Manufacturer credential +3, single owner → 8 pts, data source +2 |
+| 7   | **Mileage & Usage**       | 15         | ≤5K km → 15 pts … >150K km → 1 pt                                |
+| 8   | **Damage History**        | 10         | 0 incidents → 10 pts, major damage penalty, unrepaired deduction |
+| 9   | **Data Completeness**     | 5          | ≥90% fields → 5 pts, ≥80% → 4 pts, ≥70% → 3 pts                  |
 
 ### Risk Bands & Insurance Packages
 
-| Score | Band | Risk Level | Annual Premium | Coverage |
-|---|---|---|---|---|
-| 85–100 | **Premium Plus** | Very Low | €800 – €1,050 | Fully comprehensive, zero excess, new-for-old (3yr), worldwide |
-| 70–84 | **Premium** | Low | €950 – €1,250 | Fully comprehensive, low excess, European coverage |
-| 55–69 | **Standard** | Medium | €1,150 – €1,550 | Comprehensive with standard excess |
-| 40–54 | **Basic Plus** | High | €1,400 – €1,900 | Third-party, fire & theft |
-| 0–39 | **Basic** | Very High | €1,800 – €2,500 | Third-party only (manual underwriter review required) |
+| Score  | Band             | Risk Level | Annual Premium  | Coverage                                                       |
+| ------ | ---------------- | ---------- | --------------- | -------------------------------------------------------------- |
+| 85–100 | **Premium Plus** | Very Low   | €800 – €1,050   | Fully comprehensive, zero excess, new-for-old (3yr), worldwide |
+| 70–84  | **Premium**      | Low        | €950 – €1,250   | Fully comprehensive, low excess, European coverage             |
+| 55–69  | **Standard**     | Medium     | €1,150 – €1,550 | Comprehensive with standard excess                             |
+| 40–54  | **Basic Plus**   | High       | €1,400 – €1,900 | Third-party, fire & theft                                      |
+| 0–39   | **Basic**        | Very High  | €1,800 – €2,500 | Third-party only (manual underwriter review required)          |
 
 EV-specific add-ons: charging cable theft coverage, home charger insurance, battery warranty extension.
 
@@ -189,28 +192,28 @@ EV-specific add-ons: charging cable theft coverage, home charger insurance, batt
 
 ## Interoperability Matrix
 
-| Dimension | EU Stack | Japan Stack | Gateway Bridge |
-|---|---|---|---|
-| **Protocol** | Eclipse Dataspace Connector (Tractus-X) | CADDE | EDC consumer service translates between both |
-| **Identity** | `did:web`, `did:eu-dataspace` | `did:smartsense` | Universal DID resolver handles all methods |
-| **Trust** | Gaia-X GXDCH (Notary + Compliance) | Verifiable Credentials | Both validated before data exchange |
-| **Policy** | ODRL | Consent-based | ODRL policies + consent gates enforced together |
-| **Data Format** | Digital Product Passport (DPP) | JASPAR | DPP-to-JASPAR transformer with quality scoring |
-| **Credential Flow** | OID4VCI / OID4VP (walt.id) | VP Verification | Same VC/VP stack bridges both ecosystems |
+| Dimension           | EU Stack                                | Japan Stack            | Gateway Bridge                                  |
+| ------------------- | --------------------------------------- | ---------------------- | ----------------------------------------------- |
+| **Protocol**        | Eclipse Dataspace Connector (Tractus-X) | CADDE                  | EDC consumer service translates between both    |
+| **Identity**        | `did:web`, `did:eu-dataspace`           | `did:smartsense`       | Universal DID resolver handles all methods      |
+| **Trust**           | Gaia-X GXDCH (Notary + Compliance)      | Verifiable Credentials | Both validated before data exchange             |
+| **Policy**          | ODRL                                    | Consent-based          | ODRL policies + consent gates enforced together |
+| **Data Format**     | Digital Product Passport (DPP)          | JASPAR                 | DPP-to-JASPAR transformer with quality scoring  |
+| **Credential Flow** | OID4VCI / OID4VP (walt.id)              | VP Verification        | Same VC/VP stack bridges both ecosystems        |
 
 ---
 
 ## Tech Stack
 
-| Layer | Technologies |
-|---|---|
-| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, React Router v6 |
-| **Backend** | Node.js 20, Express.js, TypeScript, Prisma ORM |
-| **Database** | PostgreSQL 16 (15+ models) |
-| **Identity** | Keycloak 26 (OIDC, RS256), walt.id (OID4VCI, OID4VP, Wallet) |
-| **Dataspaces** | Eclipse Dataspace Connector (Tractus-X), CADDE, ODRL |
-| **Compliance** | Gaia-X GXDCH (Notary, Registry, Compliance APIs) |
-| **Cryptography** | RSA-2048, RS256 JWT, x5c chains, W3C Verifiable Credentials |
+| Layer              | Technologies                                                       |
+| ------------------ | ------------------------------------------------------------------ |
+| **Frontend**       | React 18, TypeScript, Vite, Tailwind CSS, React Router v6          |
+| **Backend**        | Node.js 20, Express.js, TypeScript, Prisma ORM                     |
+| **Database**       | PostgreSQL 16 (15+ models)                                         |
+| **Identity**       | Keycloak 26 (OIDC, RS256), walt.id (OID4VCI, OID4VP, Wallet)       |
+| **Dataspaces**     | Eclipse Dataspace Connector (Tractus-X), CADDE, ODRL               |
+| **Compliance**     | Gaia-X GXDCH (Notary, Registry, Compliance APIs)                   |
+| **Cryptography**   | RSA-2048, RS256 JWT, x5c chains, W3C Verifiable Credentials        |
 | **Infrastructure** | Docker Compose, Kubernetes + Helm 3, AWS ECR, nginx + cert-manager |
 
 ---
@@ -219,12 +222,12 @@ EV-specific add-ons: charging cable theft coverage, home charger insurance, batt
 
 The Universal Dataspace Interoperability Gateway is **sector-agnostic**. The same 4-layer architecture applies to:
 
-| Sector | Data Provider | Data Consumer | Credential |
-|---|---|---|---|
-| **Healthcare** | Hospital (EU) | Research institute (JP) | PatientConsentVC + MedicalRecordDPP |
-| **Supply Chain** | Manufacturer | Customs authority | OriginCertificateVC + ShipmentDPP |
-| **Energy** | Grid operator | Carbon auditor | EnergyProductionVC + GridDataDPP |
-| **Finance** | Bank (EU) | Regulator (JP) | ComplianceVC + TransactionDPP |
+| Sector           | Data Provider | Data Consumer           | Credential                          |
+| ---------------- | ------------- | ----------------------- | ----------------------------------- |
+| **Healthcare**   | Hospital (EU) | Research institute (JP) | PatientConsentVC + MedicalRecordDPP |
+| **Supply Chain** | Manufacturer  | Customs authority       | OriginCertificateVC + ShipmentDPP   |
+| **Energy**       | Grid operator | Carbon auditor          | EnergyProductionVC + GridDataDPP    |
+| **Finance**      | Bank (EU)     | Regulator (JP)          | ComplianceVC + TransactionDPP       |
 
 Replace the DPP schema, swap the scoring engine, keep the gateway.
 
@@ -246,6 +249,7 @@ Replace the DPP schema, swap the scoring engine, keep the gateway.
 **$4.2 trillion** in annual cross-border trade depends on trusted data exchange. Today, every new bilateral data-sharing agreement requires custom integration — different protocols, different trust models, different formats.
 
 This gateway proves that **a single interoperability layer can bridge fundamentally different dataspace architectures** while preserving:
+
 - **Data sovereignty** — Providers keep control through EDC + ODRL
 - **User consent** — Owners decide who sees their data
 - **Organizational trust** — Gaia-X compliance ensures only verified participants
@@ -258,6 +262,7 @@ This gateway proves that **a single interoperability layer can bridge fundamenta
 ## Getting Started
 
 ### Prerequisites
+
 - Docker & Docker Compose
 - Node.js 20+ / npm 10+
 
@@ -273,31 +278,31 @@ docker compose up -d
 
 Access the portals:
 
-| Portal | URL | Role |
-|---|---|---|
-| Dataspace Registry | http://localhost:3001 | Organization admin |
-| TATA Admin | http://localhost:3002 | Fleet management |
-| Public Showroom | http://localhost:3003 | Vehicle marketplace |
-| Wallet | http://localhost:3004 | Credential holder |
-| Insurance | http://localhost:3005 | Underwriting agent |
-| Company Directory | http://localhost:3006 | Company admin |
+| Portal             | URL                   | Role                |
+| ------------------ | --------------------- | ------------------- |
+| Dataspace Registry | http://localhost:3001 | Organization admin  |
+| TATA Admin         | http://localhost:3002 | Fleet management    |
+| Public Showroom    | http://localhost:3003 | Vehicle marketplace |
+| Wallet             | http://localhost:3004 | Credential holder   |
+| Insurance          | http://localhost:3005 | Underwriting agent  |
+| Company Directory  | http://localhost:3006 | Company admin       |
 
 ---
 
 ## Documentation
 
-| Document | Description |
-|---|---|
-| [Architecture](docs/architecture.md) | System design & component interactions |
-| [Backend API](docs/backend.md) | API reference & service documentation |
-| [Frontend Portals](docs/frontend.md) | Portal breakdown & shared packages |
-| [Database Schema](docs/database.md) | 15+ models & relationships |
-| [DevOps](docs/devops.md) | Docker, Helm & Kubernetes deployment |
-| [Vehicle Purchase Flow](docs/flows/vehicle-purchase.md) | Purchase → OwnershipVC issuance |
-| [Insurance Verification](docs/flows/insurance-verification.md) | 11-step OpenID4VP pipeline |
-| [EDC Negotiation](docs/flows/edc-negotiation.md) | 7-step sovereign data exchange |
-| [Gaia-X Compliance](docs/flows/gaiax-compliance.md) | Organization verification |
-| [Consent Access](docs/flows/consent-access.md) | Consent-gated data sharing |
+| Document                                                       | Description                            |
+| -------------------------------------------------------------- | -------------------------------------- |
+| [Architecture](docs/architecture.md)                           | System design & component interactions |
+| [Backend API](docs/backend.md)                                 | API reference & service documentation  |
+| [Frontend Portals](docs/frontend.md)                           | Portal breakdown & shared packages     |
+| [Database Schema](docs/database.md)                            | 15+ models & relationships             |
+| [DevOps](docs/devops.md)                                       | Docker, Helm & Kubernetes deployment   |
+| [Vehicle Purchase Flow](docs/flows/vehicle-purchase.md)        | Purchase → OwnershipVC issuance        |
+| [Insurance Verification](docs/flows/insurance-verification.md) | 11-step OpenID4VP pipeline             |
+| [EDC Negotiation](docs/flows/edc-negotiation.md)               | 7-step sovereign data exchange         |
+| [Gaia-X Compliance](docs/flows/gaiax-compliance.md)            | Organization verification              |
+| [Consent Access](docs/flows/consent-access.md)                 | Consent-gated data sharing             |
 
 ---
 
