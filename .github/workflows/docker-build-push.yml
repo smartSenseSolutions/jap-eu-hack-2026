@@ -1,0 +1,238 @@
+name: Docker Build & Push
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Docker image tag (e.g. 1.0.9)"
+        required: true
+        type: string
+      build_backend:
+        description: "Build backend image"
+        required: false
+        type: boolean
+        default: false
+      build_portal_dataspace:
+        description: "Build portal-dataspace image"
+        required: false
+        type: boolean
+        default: false
+      build_portal_tata_admin:
+        description: "Build portal-tata-admin image"
+        required: false
+        type: boolean
+        default: false
+      build_portal_tata_public:
+        description: "Build portal-tata-public image"
+        required: false
+        type: boolean
+        default: false
+      build_portal_wallet:
+        description: "Build portal-wallet image"
+        required: false
+        type: boolean
+        default: false
+      build_portal_insurance:
+        description: "Build portal-insurance image"
+        required: false
+        type: boolean
+        default: false
+      build_portal_company:
+        description: "Build portal-company image"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  authorize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check authorized actor
+        run: |
+          ALLOWED="${{ secrets.ALLOWED_ACTORS }}"
+          ACTOR="${{ github.actor }}"
+          echo "Actor: ${ACTOR}"
+          IFS=',' read -ra USERS <<< "${ALLOWED}"
+          for USER in "${USERS[@]}"; do
+            TRIMMED="${USER#"${USER%%[![:space:]]*}"}"
+            TRIMMED="${TRIMMED%"${TRIMMED##*[![:space:]]}"}"
+            if [ "${TRIMMED}" = "${ACTOR}" ]; then
+              echo "Authorization granted for ${ACTOR}"
+              exit 0
+            fi
+          done
+          echo "Error: ${ACTOR} is not authorized to trigger this workflow."
+          exit 1
+
+  build-and-push:
+    needs: authorize
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR Public
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+
+      # --- Portal images (shared Dockerfile with APP_NAME build-arg) ---
+
+      - name: Build & push portal-dataspace
+        if: ${{ inputs.build_portal_dataspace }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: APP_NAME=portal-dataspace
+          tags: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_NAMESPACE }}/portal-dataspace:${{ inputs.version }}
+
+      - name: Build & push portal-tata-admin
+        if: ${{ inputs.build_portal_tata_admin }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: APP_NAME=portal-tata-admin
+          tags: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_NAMESPACE }}/portal-tata-admin:${{ inputs.version }}
+
+      - name: Build & push portal-tata-public
+        if: ${{ inputs.build_portal_tata_public }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: APP_NAME=portal-tata-public
+          tags: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_NAMESPACE }}/portal-tata-public:${{ inputs.version }}
+
+      - name: Build & push portal-wallet
+        if: ${{ inputs.build_portal_wallet }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: APP_NAME=portal-wallet
+          tags: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_NAMESPACE }}/portal-wallet:${{ inputs.version }}
+
+      - name: Build & push portal-insurance
+        if: ${{ inputs.build_portal_insurance }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: APP_NAME=portal-insurance
+          tags: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_NAMESPACE }}/portal-insurance:${{ inputs.version }}
+
+      - name: Build & push portal-company
+        if: ${{ inputs.build_portal_company }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: APP_NAME=portal-company
+          tags: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_NAMESPACE }}/portal-company:${{ inputs.version }}
+
+      # --- Backend image (dedicated Dockerfile) ---
+
+      - name: Build & push backend
+        if: ${{ inputs.build_backend }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_NAMESPACE }}/backend:${{ inputs.version }}
+
+  update-helm-values:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install yq
+        run: |
+          wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          chmod +x /usr/local/bin/yq
+
+      - name: Update image tags in values-custom.yaml
+        run: |
+          VALUES_FILE="helm/eu-jap-hack/values-custom.yaml"
+          VERSION="${{ inputs.version }}"
+
+          if [ "${{ inputs.build_backend }}" = "true" ]; then
+            yq -i ".backend.image.tag = \"${VERSION}\"" "${VALUES_FILE}"
+            echo "Updated backend → ${VERSION}"
+          fi
+
+          if [ "${{ inputs.build_portal_dataspace }}" = "true" ]; then
+            yq -i ".portalDataspace.image.tag = \"${VERSION}\"" "${VALUES_FILE}"
+            echo "Updated portalDataspace → ${VERSION}"
+          fi
+
+          if [ "${{ inputs.build_portal_tata_admin }}" = "true" ]; then
+            yq -i ".portalTataAdmin.image.tag = \"${VERSION}\"" "${VALUES_FILE}"
+            echo "Updated portalTataAdmin → ${VERSION}"
+          fi
+
+          if [ "${{ inputs.build_portal_tata_public }}" = "true" ]; then
+            yq -i ".portalTataPublic.image.tag = \"${VERSION}\"" "${VALUES_FILE}"
+            echo "Updated portalTataPublic → ${VERSION}"
+          fi
+
+          if [ "${{ inputs.build_portal_wallet }}" = "true" ]; then
+            yq -i ".portalWallet.image.tag = \"${VERSION}\"" "${VALUES_FILE}"
+            echo "Updated portalWallet → ${VERSION}"
+          fi
+
+          if [ "${{ inputs.build_portal_insurance }}" = "true" ]; then
+            yq -i ".portalInsurance.image.tag = \"${VERSION}\"" "${VALUES_FILE}"
+            echo "Updated portalInsurance → ${VERSION}"
+          fi
+
+          if [ "${{ inputs.build_portal_company }}" = "true" ]; then
+            yq -i ".portalCompany.image.tag = \"${VERSION}\"" "${VALUES_FILE}"
+            echo "Updated portalCompany → ${VERSION}"
+          fi
+
+      - name: Commit and push updated values
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet && echo "No changes to commit" && exit 0
+          git add helm/eu-jap-hack/values-custom.yaml
+          git commit -m "chore: bump docker image tags to ${{ inputs.version }} in values-custom"
+          git push
