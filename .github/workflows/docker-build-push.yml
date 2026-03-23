@@ -228,11 +228,32 @@ jobs:
             echo "Updated portalCompany → ${VERSION}"
           fi
 
-      - name: Commit and push updated values
+      - name: Commit and push to branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git diff --quiet && echo "No changes to commit" && exit 0
+          BRANCH="chore/bump-image-tags-${{ inputs.version }}"
+          git checkout -b "${BRANCH}"
           git add helm/eu-jap-hack/values-custom.yaml
           git commit -m "chore: bump docker image tags to ${{ inputs.version }} in values-custom"
-          git push
+          git push origin "${BRANCH}"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: chore/bump-image-tags-${{ inputs.version }}
+          title: "chore: bump docker image tags to ${{ inputs.version }}"
+          body: |
+            Automated image tag bump after Docker build & push for version `${{ inputs.version }}`.
+
+            **Updated services:**
+            - ${{ inputs.build_backend && 'backend' || '~~backend~~' }}
+            - ${{ inputs.build_portal_dataspace && 'portal-dataspace' || '~~portal-dataspace~~' }}
+            - ${{ inputs.build_portal_tata_admin && 'portal-tata-admin' || '~~portal-tata-admin~~' }}
+            - ${{ inputs.build_portal_tata_public && 'portal-tata-public' || '~~portal-tata-public~~' }}
+            - ${{ inputs.build_portal_wallet && 'portal-wallet' || '~~portal-wallet~~' }}
+            - ${{ inputs.build_portal_insurance && 'portal-insurance' || '~~portal-insurance~~' }}
+            - ${{ inputs.build_portal_company && 'portal-company' || '~~portal-company~~' }}
+          base: main
