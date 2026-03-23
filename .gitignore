@@ -1,2 +1,38 @@
+# Dependencies
 node_modules
+**/node_modules
+
+# Environment files
 .env
+.env.local
+.env.*.local
+.env.production
+.env.production.local
+
+# Build outputs
+dist
+**/dist
+
+# Vite cache
+.vite
+**/.vite
+
+# Test coverage
+coverage
+.nyc_output
+
+# IDE & editors
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+.cache
+*.tmp
+npm-debug.log*
+yarn-error.log*
