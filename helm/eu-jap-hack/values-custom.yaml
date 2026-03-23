@@ -215,7 +215,7 @@ keycloak:
   service:
     port: 8080
   ingress:
-    host: "centralidp.tx.the-sense.io"
+    host: "auth.tx.the-sense.io"
   resources:
     requests:
       cpu: 500m

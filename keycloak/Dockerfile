@@ -15,4 +15,4 @@ RUN /opt/keycloak/bin/kc.sh build
 COPY realm-export.json /opt/keycloak/data/import/realm-export.json
 
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
-CMD ["start", "--import-realm", "--optimized"]
+CMD ["start-dev", "--import-realm"]
