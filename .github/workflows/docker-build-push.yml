@@ -228,22 +228,12 @@ jobs:
             echo "Updated portalCompany → ${VERSION}"
           fi
 
-      - name: Commit and push to branch
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git diff --quiet && echo "No changes to commit" && exit 0
-          BRANCH="chore/bump-image-tags-${{ inputs.version }}"
-          git checkout -b "${BRANCH}"
-          git add helm/eu-jap-hack/values-custom.yaml
-          git commit -m "chore: bump docker image tags to ${{ inputs.version }} in values-custom"
-          git push origin "${BRANCH}"
-
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: chore/bump-image-tags-${{ inputs.version }}
+          commit-message: "chore: bump docker image tags to ${{ inputs.version }} in values-custom"
           title: "chore: bump docker image tags to ${{ inputs.version }}"
           body: |
             Automated image tag bump after Docker build & push for version `${{ inputs.version }}`.
