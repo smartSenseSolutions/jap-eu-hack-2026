@@ -1,15 +1,12 @@
 global:
   imageRegistry: "public.ecr.aws/smartsensesolutions"
   imagePullSecrets: []
-
 # -- Ingress class name
 ingressClassName: nginx
-
 # -- TLS configuration via cert-manager
 tls:
   enabled: true
   clusterIssuer: letsencrypt-prod
-
 # =============================================================================
 # Backend API
 # =============================================================================
@@ -17,7 +14,7 @@ backend:
   replicaCount: 1
   image:
     repository: eu-jap-hack/backend
-    tag: "1.0.8"
+    tag: "1.0.9"
     pullPolicy: Always
   service:
     port: 8000
@@ -55,7 +52,6 @@ backend:
     limits:
       cpu: 500m
       memory: 512Mi
-
 # =============================================================================
 # Frontend Portals
 # =============================================================================
@@ -81,7 +77,6 @@ portalDataspace:
     limits:
       cpu: 200m
       memory: 128Mi
-
 portalTataAdmin:
   replicaCount: 1
   image:
@@ -104,7 +99,6 @@ portalTataAdmin:
     limits:
       cpu: 200m
       memory: 128Mi
-
 portalTataPublic:
   replicaCount: 1
   image:
@@ -127,7 +121,6 @@ portalTataPublic:
     limits:
       cpu: 200m
       memory: 128Mi
-
 portalWallet:
   replicaCount: 1
   image:
@@ -149,7 +142,6 @@ portalWallet:
     limits:
       cpu: 200m
       memory: 128Mi
-
 portalInsurance:
   replicaCount: 1
   image:
@@ -172,7 +164,6 @@ portalInsurance:
     limits:
       cpu: 200m
       memory: 128Mi
-
 portalCompany:
   replicaCount: 1
   image:
@@ -195,7 +186,6 @@ portalCompany:
     limits:
       cpu: 200m
       memory: 128Mi
-
 # =============================================================================
 # Walt.id Services
 # =============================================================================
@@ -217,7 +207,6 @@ waltidWalletApi:
     limits:
       cpu: 500m
       memory: 512Mi
-
 waltidIssuerApi:
   replicaCount: 1
   image:
@@ -236,7 +225,6 @@ waltidIssuerApi:
     limits:
       cpu: 500m
       memory: 512Mi
-
 waltidVerifierApi:
   replicaCount: 1
   image:
