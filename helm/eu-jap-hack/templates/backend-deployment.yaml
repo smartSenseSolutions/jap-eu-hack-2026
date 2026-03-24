@@ -31,7 +31,7 @@ spec:
               protocol: TCP
           env:
             {{- range $key, $value := .Values.backend.env }}
-            {{- if and $value (ne $key "DATABASE_URL") }}
+            {{- if and $value (ne $key "DATABASE_URL") (ne $key "KEYCLOAK_ADMIN_CLIENT_SECRET") }}
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
