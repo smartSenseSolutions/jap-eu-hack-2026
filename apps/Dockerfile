@@ -29,7 +29,7 @@ COPY apps/${APP_NAME} ./apps/${APP_NAME}
 RUN npm run build --workspace=apps/${APP_NAME}
 
 # Serve with nginx
-FROM nginx:alpine
+FROM nginx:stable-alpine
 ARG APP_NAME
 COPY --from=build /app/apps/${APP_NAME}/dist /usr/share/nginx/html
 

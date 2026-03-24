@@ -6,7 +6,9 @@ COPY package.json package-lock.json* ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
-COPY . .
+# Copy only source needed for compilation (excludes vault/, README.md, .env*, etc.)
+COPY src ./src
+COPY tsconfig.json ./
 
 RUN npm run build
 
@@ -14,15 +16,15 @@ RUN npm run build
 FROM node:20-alpine AS production
 WORKDIR /app
 
+# Install system deps first — cached independently of code/npm changes
+RUN apk add --no-cache git
+
 COPY package.json package-lock.json* ./
 
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev
 
 COPY --from=build /app/dist ./dist
-
-# git is needed for committing Helm values + Argo Application manifests
-RUN apk add --no-cache git
 
 EXPOSE 3001
 

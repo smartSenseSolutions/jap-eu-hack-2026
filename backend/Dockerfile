@@ -1,33 +1,36 @@
 FROM node:20-alpine AS base
 WORKDIR /app
 
-# Copy root workspace files
+# Copy workspace manifests for dependency install
 COPY package.json package-lock.json ./
 COPY packages ./packages
 COPY backend/package.json ./backend/
 
-# Install dependencies (cached npm store)
+# Install all deps (dev + prod) for compilation
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --workspace=backend --include-workspace-root
 
 # Copy backend source (includes prisma/)
 COPY backend ./backend
 
-# Generate Prisma client and build TypeScript
+# Generate Prisma client and compile TypeScript
 RUN npm run build --workspace=backend
+
+# Prune devDependencies in-place — production stage copies these node_modules directly
+RUN npm prune --omit=dev
 
 # Production stage
 FROM node:20-alpine AS production
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package.json ./
 COPY packages ./packages
 COPY backend/package.json ./backend/
 
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --workspace=backend --include-workspace-root --omit=dev
+# Copy pruned node_modules from build stage (no second npm install)
+COPY --from=base /app/node_modules ./node_modules
 
-# Copy built output, Prisma schema, and generated client from build stage
+# Copy compiled output and Prisma artifacts
 COPY --from=base /app/backend/dist ./backend/dist
 COPY --from=base /app/backend/prisma ./backend/prisma
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
