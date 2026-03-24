@@ -117,28 +117,12 @@ async function runProvisioning(
     return;
   }
 
-  // Step 4: Notify backend with full status
-  const managementUrl = `https://${tenantCode}-controlplane.tx.the-sense.io/management`;
-  const protocolUrl = `https://${tenantCode}-protocol.tx.the-sense.io/api/v1/dsp`;
-  const dataplaneUrl = `https://${tenantCode}-dataplane.tx.the-sense.io`;
-  const helmRelease = `edc-${tenantCode}`;
-  const argoAppName = `edc-${tenantCode}`;
-  const k8sNamespace = `edc-${tenantCode}`;
-  const dbName = `edc_${tenantCode.replace(/-/g, '_')}`;
-  const dbUser = `edc_${tenantCode.replace(/-/g, '_')}`;
-
+  // Step 4: Notify backend — only status, vaultPath, and provisionedAt.
+  // All EDC config (URLs, keys, namespaces) is derived by the backend from tenantCode,
+  // so the callback payload is minimal and the config is never at risk of being lost.
   await notifyBackend(companyId, {
     status: 'ready',
-    managementUrl,
-    protocolUrl,
-    dataplaneUrl,
-    apiKey: tenantCode,
-    helmRelease,
-    argoAppName,
-    k8sNamespace,
     vaultPath,
-    dbName,
-    dbUser,
     provisionedAt: new Date().toISOString(),
   });
   console.log(`[provision] ===== Provisioning COMPLETE for tenant "${tenantCode}" =====`);

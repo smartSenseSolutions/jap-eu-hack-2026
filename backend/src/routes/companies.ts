@@ -62,43 +62,50 @@ router.get('/:id/edc-status', async (req, res) => {
 /**
  * PATCH /companies/:id/edc-provisioning
  * Internal callback — called only by the provisioning microservice (not exposed publicly).
- * Updates the EdcProvisioning record after each provisioning step or on completion/failure.
+ *
+ * The payload is minimal: { status, vaultPath?, provisionedAt?, lastError?, attempts? }
+ * All EDC config (URLs, keys, namespaces, DB name) is derived here from the company's
+ * tenantCode — so the config is never dependent on the provisioning service being reachable
+ * at the exact moment the callback fires.
  */
 router.patch('/:id/edc-provisioning', async (req, res) => {
   const { id } = req.params;
   console.log(`[edc-callback] Provisioning status update for company ${id}:`, req.body.status);
 
-  const {
-    status,
-    attempts,
-    lastError,
-    managementUrl,
-    protocolUrl,
-    dataplaneUrl,
-    apiKey,
-    helmRelease,
-    argoAppName,
-    k8sNamespace,
-    vaultPath,
-    dbName,
-    dbUser,
-    provisionedAt,
-  } = req.body;
+  const { status, attempts, lastError, vaultPath, provisionedAt } = req.body;
+
+  // Derive all EDC config from tenantCode when provisioning succeeds.
+  // This makes the config resilient — even if this callback had failed and been
+  // retried later, the derived values are always correct and consistent.
+  let derivedConfig = {};
+  if (status === 'ready') {
+    const company = await prisma.company.findUnique({
+      where: { id },
+      select: { tenantCode: true },
+    });
+    if (company?.tenantCode) {
+      const t = company.tenantCode;
+      const u = t.replace(/-/g, '_');
+      derivedConfig = {
+        managementUrl: `https://${t}-controlplane.tx.the-sense.io/management`,
+        protocolUrl:   `https://${t}-protocol.tx.the-sense.io/api/v1/dsp`,
+        dataplaneUrl:  `https://${t}-dataplane.tx.the-sense.io`,
+        apiKey:        t,
+        helmRelease:   `edc-${t}`,
+        argoAppName:   `edc-${t}`,
+        k8sNamespace:  `edc-${t}`,
+        dbName:        `edc_${u}`,
+        dbUser:        `edc_${u}`,
+      };
+    }
+  }
 
   const data = {
     status,
+    ...derivedConfig,
     ...(attempts !== undefined && { attempts }),
     ...(lastError !== undefined && { lastError }),
-    ...(managementUrl !== undefined && { managementUrl }),
-    ...(protocolUrl !== undefined && { protocolUrl }),
-    ...(dataplaneUrl !== undefined && { dataplaneUrl }),
-    ...(apiKey !== undefined && { apiKey }),
-    ...(helmRelease !== undefined && { helmRelease }),
-    ...(argoAppName !== undefined && { argoAppName }),
-    ...(k8sNamespace !== undefined && { k8sNamespace }),
     ...(vaultPath !== undefined && { vaultPath }),
-    ...(dbName !== undefined && { dbName }),
-    ...(dbUser !== undefined && { dbUser }),
     ...(provisionedAt !== undefined && { provisionedAt: new Date(provisionedAt) }),
   };
 
