@@ -47,7 +47,7 @@ All steps are **idempotent** — re-triggering provisioning will not create dupl
 | PostgreSQL Service | `edc-{tenantCode}-postgresql` | `edc-{tenantCode}` |
 | PostgreSQL database | `edc_{tenantCode}` (hyphens → underscores) | — |
 | PostgreSQL user | `edc_{tenantCode}` | — |
-| Vault secret path | `k8s-stack/data/tx_edc_connector_{tenantCode}` | — |
+| Vault secret path | `k8s-stack/data/runtime_edc/tx_edc_connector_{tenantCode}` | — |
 
 ---
 
@@ -87,11 +87,11 @@ The token must be associated with a policy that allows:
 
 ```hcl
 # Allow write/read to all tenant EDC connector secret paths
-path "k8s-stack/data/tx_edc_connector_*" {
+path "k8s-stack/data/runtime_edc/*" {
   capabilities = ["create", "update", "read"]
 }
 
-path "k8s-stack/metadata/tx_edc_connector_*" {
+path "k8s-stack/metadata/runtime_edc/*" {
   capabilities = ["list", "read"]
 }
 ```
@@ -108,7 +108,7 @@ vault policy write edc-provisioning provisioning-policy.hcl
 vault token create -policy=edc-provisioning -ttl=0 -display-name=edc-provisioning
 ```
 
-**Secrets written per tenant** (`k8s-stack/data/tx_edc_connector_{tenantCode}`):
+**Secrets written per tenant** (`k8s-stack/data/runtime_edc/tx_edc_connector_{tenantCode}`):
 
 | Key | Value |
 |---|---|
@@ -245,7 +245,7 @@ spec:
 POST /provision
   │
   ├─ Step 0: callback → status: "provisioning"
-  ├─ Step 1: Vault KV v2 write → k8s-stack/data/tx_edc_connector_{code}
+  ├─ Step 1: Vault KV v2 write → k8s-stack/data/runtime_edc/tx_edc_connector_{code}
   │           Keys: dbpass (random), vault-token
   ├─ Step 2: Render values-template.yaml → values-{code}.yaml
   │           PostgreSQL: install.postgresql=true, in-cluster subchart,

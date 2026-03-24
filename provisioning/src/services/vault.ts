@@ -7,7 +7,7 @@ export interface TenantSecrets {
 
 /**
  * Idempotently writes tenant EDC secrets to HashiCorp Vault (KV v2).
- * Path: k8s-stack/data/tx_edc_connector_{tenantCode}
+ * Path: k8s-stack/data/runtime_edc/tx_edc_connector_{tenantCode}
  *
  * Secrets written:
  *   - dbpass      — PostgreSQL password used by the in-cluster Bitnami subchart and EDC
@@ -28,7 +28,7 @@ export async function writeTenantSecrets(
   if (!vaultAddr) throw new Error('VAULT_ADDR is not set');
   if (!vaultToken) throw new Error('VAULT_TOKEN is not set');
 
-  const vaultPath = `k8s-stack/data/tx_edc_connector_${tenantCode.replace(/-/g, '_')}`;
+  const vaultPath = `k8s-stack/data/runtime_edc/tx_edc_connector_${tenantCode.replace(/-/g, '_')}`;
   console.log(`[vault] Writing secrets to path: ${vaultPath}`);
 
   const vault = nodeVault({ endpoint: vaultAddr, token: vaultToken });
