@@ -5,7 +5,7 @@ import cors from 'cors';
 
 console.log('Running pending migrations...');
 try {
-  execSync('npx prisma migrate deploy', { stdio: 'inherit', cwd: process.cwd() });
+  execSync('npx prisma migrate deploy --schema=/app/backend/prisma/schema.prisma', { stdio: 'inherit' });
   console.log('Migrations applied.');
 } catch (e) {
   console.error('Migration failed:', e);
@@ -14,7 +14,7 @@ try {
 
 console.log('Generating Prisma client...');
 try {
-  execSync('npx prisma generate', { stdio: 'inherit', cwd: process.cwd() });
+  execSync('npx prisma generate --schema=/app/backend/prisma/schema.prisma', { stdio: 'inherit' });
   console.log('Prisma client generated.');
 } catch (e) {
   console.error('Prisma generate failed:', e);
