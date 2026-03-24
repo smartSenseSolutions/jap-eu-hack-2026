@@ -19,6 +19,7 @@ interface Company {
   adminEmail?: string
   createdAt?: string
   credentials?: Array<{ type: string; status: string }>
+  edcProvisioning?: { status: 'pending' | 'provisioning' | 'ready' | 'failed' }
 }
 
 export default function CompanyList() {
@@ -76,6 +77,13 @@ export default function CompanyList() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(company => {
             const hasActiveVC = company.credentials?.some(c => c.type === 'OrgVC' && c.status === 'active')
+            const edcStatus = company.edcProvisioning?.status
+            const edcBadge: Record<string, { label: string; cls: string }> = {
+              pending:      { label: 'EDC Pending',      cls: 'text-gray-400 bg-gray-50' },
+              provisioning: { label: 'EDC Setting up…',  cls: 'text-blue-500 bg-blue-50' },
+              ready:        { label: 'EDC Ready',         cls: 'text-green-600 bg-green-50' },
+              failed:       { label: 'EDC Failed',        cls: 'text-red-500 bg-red-50' },
+            }
             return (
               <div
                 key={company.id}
@@ -102,6 +110,11 @@ export default function CompanyList() {
                   {company.eoriNumber && <span className="text-[10px] text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">EORI</span>}
                   {company.cin && <span className="text-[10px] text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">CIN</span>}
                   {company.gstNumber && <span className="text-[10px] text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded">GST</span>}
+                  {edcStatus && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${edcBadge[edcStatus].cls}`}>
+                      {edcBadge[edcStatus].label}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between text-[10px] text-gray-400 mt-3 pt-3 border-t border-gray-50">

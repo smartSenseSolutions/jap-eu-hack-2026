@@ -31,18 +31,88 @@ interface Company {
   credentials?: Credential[]
 }
 
+interface EdcProvisioning {
+  status: 'pending' | 'provisioning' | 'ready' | 'failed'
+  lastError?: string
+  managementUrl?: string
+  protocolUrl?: string
+  dataplaneUrl?: string
+  apiKey?: string
+  k8sNamespace?: string
+  argoAppName?: string
+  vaultPath?: string
+  dbName?: string
+  provisionedAt?: string
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+  const copy = () => {
+    navigator.clipboard.writeText(value)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+  return (
+    <button onClick={copy} className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors ml-2 shrink-0">
+      {copied ? 'Copied!' : 'Copy'}
+    </button>
+  )
+}
+
+function ConfigRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="py-2.5 border-b border-gray-100 last:border-0">
+      <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-mono text-xs text-gray-700 break-all">{value}</p>
+        <CopyButton value={value} />
+      </div>
+    </div>
+  )
+}
+
+function EdcStatusBadge({ status }: { status: EdcProvisioning['status'] }) {
+  const styles: Record<string, string> = {
+    pending:      'bg-gray-100 text-gray-500',
+    provisioning: 'bg-blue-50 text-blue-600',
+    ready:        'bg-green-50 text-green-600',
+    failed:       'bg-red-50 text-red-600',
+  }
+  const labels: Record<string, string> = {
+    pending:      'Pending',
+    provisioning: 'Provisioning…',
+    ready:        'Ready',
+    failed:       'Failed',
+  }
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${styles[status]}`}>
+      {status === 'provisioning' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />}
+      {status === 'ready' && <span className="w-1.5 h-1.5 rounded-full bg-green-500" />}
+      {labels[status]}
+    </span>
+  )
+}
+
 export default function CompanyDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [company, setCompany] = useState<Company | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedCred, setSelectedCred] = useState<Credential | null>(null)
+  const [edc, setEdc] = useState<EdcProvisioning | null>(null)
 
   useEffect(() => {
     axios.get(`${API_BASE}/companies/${id}`).then(r => {
       setCompany(r.data.company || r.data)
       setLoading(false)
     }).catch(() => setLoading(false))
+  }, [id])
+
+  useEffect(() => {
+    if (!id) return
+    axios.get(`${API_BASE}/companies/${id}/edc-status`)
+      .then(r => setEdc(r.data))
+      .catch(() => {})
   }, [id])
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin w-6 h-6 border-2 border-slate-500 border-t-transparent rounded-full"></div></div>
@@ -154,6 +224,46 @@ export default function CompanyDetail() {
           </div>
         )}
       </div>
+
+      {/* EDC Connector */}
+      {edc && (
+        <div className="border border-gray-100 rounded-lg p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-xs font-medium text-gray-700">EDC Connector</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">Eclipse Dataspace Connector</p>
+            </div>
+            <EdcStatusBadge status={edc.status} />
+          </div>
+
+          {(edc.status === 'pending' || edc.status === 'provisioning') && (
+            <div className="text-center py-4">
+              <div className="w-6 h-6 border-2 border-blue-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-2" />
+              <p className="text-xs text-gray-400">Setting up dedicated EDC instance…</p>
+            </div>
+          )}
+
+          {edc.status === 'failed' && (
+            <div className="bg-red-50 rounded p-3">
+              <p className="text-xs font-medium text-red-600 mb-1">Provisioning failed</p>
+              <p className="text-xs text-red-400">{edc.lastError || 'An unexpected error occurred.'}</p>
+            </div>
+          )}
+
+          {edc.status === 'ready' && (
+            <div className="space-y-0">
+              {edc.protocolUrl   && <ConfigRow label="DSP Protocol URL"    value={edc.protocolUrl} />}
+              {edc.managementUrl && <ConfigRow label="Management API URL"  value={edc.managementUrl} />}
+              {edc.dataplaneUrl  && <ConfigRow label="Dataplane URL"       value={edc.dataplaneUrl} />}
+              {edc.apiKey        && <ConfigRow label="API Key"             value={edc.apiKey} />}
+              {edc.k8sNamespace  && <ConfigRow label="Kubernetes Namespace" value={edc.k8sNamespace} />}
+              {edc.argoAppName   && <ConfigRow label="ArgoCD Application"  value={edc.argoAppName} />}
+              {edc.dbName        && <ConfigRow label="Database Name"       value={edc.dbName} />}
+              {edc.provisionedAt && <ConfigRow label="Provisioned At"      value={new Date(edc.provisionedAt).toLocaleString()} />}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* OrgVC details */}
       {orgVC?.credentialSubject && (
