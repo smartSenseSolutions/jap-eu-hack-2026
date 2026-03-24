@@ -1,6 +1,16 @@
 import 'dotenv/config';
+import { execSync } from 'child_process';
 import express from 'express';
 import cors from 'cors';
+
+console.log('Running pending migrations...');
+try {
+  execSync('npx prisma migrate deploy', { stdio: 'inherit', cwd: process.cwd() });
+  console.log('Migrations applied.');
+} catch (e) {
+  console.error('Migration failed:', e);
+  process.exit(1);
+}
 import carsRouter from './routes/cars';
 import credentialsRouter from './routes/credentials';
 import consentRouter from './routes/consent';
