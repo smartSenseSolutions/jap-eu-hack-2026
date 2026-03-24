@@ -1,21 +1,15 @@
-{{!-- Handlebars template for a per-tenant Argo CD Application manifest.
-     Variables: tenantCode, gitRepoUrl
-     Rendered by: provisioning/src/services/argo.ts
-     Output:     gitops/applications/{{tenantCode}}-edc.yaml
-     Argo CD watches gitops/applications/ and auto-syncs on new files (poll ~3 min).
---}}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: edc-{{tenantCode}}
+  name: edc-smartsense-consulting-solution-2
   namespace: argocd
   labels:
-    tenant: {{tenantCode}}
+    tenant: smartsense-consulting-solution-2
     managed-by: edc-provisioning
 spec:
   project: default
   source:
-    repoURL: {{gitRepoUrl}}
+    repoURL: https://github.com/smartSenseSolutions/jap-eu-hack-2026
     targetRevision: HEAD
     path: edc/tx-edc-eleven
     plugin:
@@ -24,10 +18,10 @@ spec:
         - name: VAULT_SECRET
           value: vault-secret
         - name: HELM_VALUES_FILE
-          value: "values.yaml -f values-{{tenantCode}}.yaml"
+          value: "values.yaml -f values-smartsense-consulting-solution-2.yaml"
   destination:
     server: https://kubernetes.default.svc
-    namespace: edc-{{tenantCode}}
+    namespace: edc-smartsense-consulting-solution-2
   syncPolicy:
     automated:
       prune: true

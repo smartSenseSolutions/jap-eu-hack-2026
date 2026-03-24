@@ -1,17 +1,12 @@
-{{!-- Handlebars template for per-tenant EDC Helm values.
-     Variables: tenantCode, bpn
-     Rendered by: provisioning/src/services/helm.ts
-     Output:     edc/tx-edc-eleven/values-{{tenantCode}}.yaml
---}}
 install:
   postgresql: false
   vault: false
-fullnameOverride: "tx-ecd-connector-{{tenantCode}}"
-nameOverride: "tx-ecd-connector-{{tenantCode}}"
+fullnameOverride: "tx-ecd-connector-honda-india"
+nameOverride: "tx-ecd-connector-honda-india"
 participant:
-  id: "{{bpn}}"
+  id: "BPNLefWSozF1hQew"
 iatp:
-  id: "did:web:wallet.tx.the-sense.io:{{bpn}}"
+  id: "did:web:wallet.tx.the-sense.io:BPNLefWSozF1hQew"
   trustedIssuers:
     - "did:web:wallet.tx.the-sense.io:BPNL000000000000"
   sts:
@@ -20,7 +15,7 @@ iatp:
     oauth:
       token_url: https://wallet.tx.the-sense.io/oauth/token
       client:
-        id: "{{bpn}}"
+        id: "BPNLefWSozF1hQew"
         secret_alias: "edc-stub"
 
 controlplane:
@@ -41,7 +36,7 @@ controlplane:
     management:
       port: 8081
       path: /management
-      authKey: "{{tenantCode}}"
+      authKey: "honda-india"
       jwksUrl:
     control:
       port: 8083
@@ -55,7 +50,7 @@ controlplane:
     catalog:
       port: 8085
       path: /catalog
-      authKey: "{{tenantCode}}"
+      authKey: "honda-india"
 
   bdrs:
     cache_validity_seconds: 600
@@ -76,7 +71,7 @@ controlplane:
 
   ingresses:
     - enabled: true
-      hostname: "{{tenantCode}}-protocol.tx.the-sense.io"
+      hostname: "honda-india-protocol.tx.the-sense.io"
       annotations: {}
       endpoints:
         - protocol
@@ -84,12 +79,12 @@ controlplane:
       className: "nginx"
       tls:
         enabled: true
-        secretName: "edc-protocol-{{tenantCode}}"
+        secretName: "edc-protocol-honda-india"
       certManager:
         issuer: ""
         clusterIssuer: "letsencrypt-prod"
     - enabled: true
-      hostname: "{{tenantCode}}-controlplane.tx.the-sense.io"
+      hostname: "honda-india-controlplane.tx.the-sense.io"
       annotations: {}
       endpoints:
         - management
@@ -97,7 +92,7 @@ controlplane:
       className: "nginx"
       tls:
         enabled: true
-        secretName: "edc-control-{{tenantCode}}-intranet"
+        secretName: "edc-control-honda-india-intranet"
       certManager:
         issuer: ""
         clusterIssuer: "letsencrypt-prod"
@@ -158,14 +153,14 @@ dataplane:
 
   ingresses:
     - enabled: true
-      hostname: "{{tenantCode}}-dataplane.tx.the-sense.io"
+      hostname: "honda-india-dataplane.tx.the-sense.io"
       annotations: {}
       endpoints:
         - public
       className: "nginx"
       tls:
         enabled: true
-        secretName: "edc-dataplane-{{tenantCode}}"
+        secretName: "edc-dataplane-honda-india"
       certManager:
         issuer: ""
         clusterIssuer: "letsencrypt-prod"
@@ -182,11 +177,11 @@ dataplane:
 postgresql:
   # Shared PostgreSQL server running in edc-postgres namespace.
   # Database and user are created at runtime by the provisioning service.
-  jdbcUrl: "jdbc:postgresql://postgres.postgres-edc.svc.cluster.local:5432/edc_{{tenantCode}}"
+  jdbcUrl: "jdbc:postgresql://postgres.postgres-edc.svc.cluster.local:5432/edc_honda-india"
   auth:
-    database: "edc_{{tenantCode}}"
-    username: "edc_{{tenantCode}}"
-    password: "<path:k8s-stack/data/runtime_edc/tx_edc_connector_{{tenantCodeUnderscore}}#dbpass>"
+    database: "edc_honda-india"
+    username: "edc_honda-india"
+    password: "<path:k8s-stack/data/runtime_edc/tx_edc_connector_honda_india#dbpass>"
 
 vault:
   injector:
@@ -197,7 +192,7 @@ vault:
     postStart:
   hashicorp:
     url: "https://vault.the-sense.io"
-    token: "<path:k8s-stack/data/runtime_edc/tx_edc_connector_{{tenantCodeUnderscore}}#vault-token>"
+    token: "<path:k8s-stack/data/runtime_edc/tx_edc_connector_honda_india#vault-token>"
     timeout: 30
     healthCheck:
       enabled: false
