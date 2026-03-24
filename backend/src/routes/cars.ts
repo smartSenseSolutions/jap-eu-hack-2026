@@ -61,9 +61,13 @@ router.post('/', requireRole('admin'), async (req, res) => {
 
   if (ENABLE_EDC) {
     try {
-      const assetResponse = await createAsset(vin);
+      const edcConfig = {
+        baseUrl: process.env.EDC_BASE_URL || '',
+        apiKey:  process.env.EDC_API_KEY  || '',
+      };
+      const assetResponse = await createAsset(vin, edcConfig);
       const assetId = assetResponse['@id'];
-      await createContractDefinition(assetId);
+      await createContractDefinition(assetId, edcConfig);
     } catch (err: any) {
       return res.status(502).json({
         error: 'Failed to register car in EDC. Car not created.',
