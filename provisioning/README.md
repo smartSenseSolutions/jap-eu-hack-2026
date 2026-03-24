@@ -81,31 +81,33 @@ ARGOCD_AUTH_TOKEN=<argocd-api-token>                                # optional
 
 ### HashiCorp Vault
 
-The service uses a **static Vault token** (`VAULT_TOKEN`) injected as a Kubernetes Secret.
+The service uses a **dedicated Vault token** (`VAULT_TOKEN`) with a least-privilege policy scoped exclusively to `k8s-stack/data/runtime_edc/*`. It has no access to any other secrets in the `k8s-stack` engine.
 
-The token must be associated with a policy that allows:
-
-```hcl
-# Allow write/read to all tenant EDC connector secret paths
-path "k8s-stack/data/runtime_edc/*" {
-  capabilities = ["create", "update", "read"]
-}
-
-path "k8s-stack/metadata/runtime_edc/*" {
-  capabilities = ["list", "read"]
-}
-```
+The policy file is committed at `provisioning/vault/provisioning-policy.hcl`.
 
 **KV engine requirements:**
 - Mount name: `k8s-stack`
 - Engine version: **KV v2**
 - If the mount does not exist: `vault secrets enable -version=2 -path=k8s-stack kv`
 
-**Create the policy and token:**
+**Apply the policy and create the token (run once):**
 ```bash
-# Create policy file provisioning-policy.hcl with the content above, then:
-vault policy write edc-provisioning provisioning-policy.hcl
-vault token create -policy=edc-provisioning -ttl=0 -display-name=edc-provisioning
+# Apply the policy from the repo
+vault policy write edc-provisioning provisioning/vault/provisioning-policy.hcl
+
+# Create a dedicated token with only this policy (no default policy)
+vault token create \
+  -policy=edc-provisioning \
+  -display-name=edc-provisioning-service \
+  -ttl=0 \
+  -no-default-policy
+
+# Store the returned token in VAULT_TOKEN (Kubernetes Secret or .env)
+```
+
+**Verify the policy is correct:**
+```bash
+vault policy read edc-provisioning
 ```
 
 **Secrets written per tenant** (`k8s-stack/data/runtime_edc/tx_edc_connector_{tenantCode}`):
