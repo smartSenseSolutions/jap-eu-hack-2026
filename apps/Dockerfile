@@ -1,6 +1,6 @@
 ARG APP_NAME
 
-FROM node:20-alpine AS build
+FROM public.ecr.aws/docker/library/node:20-alpine AS build
 ARG APP_NAME
 WORKDIR /app
 
@@ -29,7 +29,7 @@ COPY apps/${APP_NAME} ./apps/${APP_NAME}
 RUN npm run build --workspace=apps/${APP_NAME}
 
 # Serve with nginx
-FROM nginx:stable-alpine
+FROM public.ecr.aws/nginx/nginx:stable-alpine
 ARG APP_NAME
 COPY --from=build /app/apps/${APP_NAME}/dist /usr/share/nginx/html
 
