@@ -368,6 +368,10 @@ router.post('/', requireRole('company_admin'), async (req, res) => {
         },
       });
       console.log(`[onboarding:gaia-x] Verification complete for OrgCredential ${orgCredId} | status=${isVerified ? 'VERIFIED' : 'FAILED'} notary=${result.notaryResult.status} compliance=${result.complianceResult.status}`);
+      if (result.complianceResult.status !== 'compliant') {
+        console.error(`[onboarding:gaia-x] Compliance errors:`, JSON.stringify(result.complianceResult.errors || []));
+        console.error(`[onboarding:gaia-x] Compliance raw response:`, JSON.stringify(result.complianceResult.raw));
+      }
     })
     .catch((err: Error) => {
       prisma.orgCredential.update({
