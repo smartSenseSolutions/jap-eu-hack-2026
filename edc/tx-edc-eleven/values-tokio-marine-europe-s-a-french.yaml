@@ -4,9 +4,9 @@ install:
 fullnameOverride: "tx-ecd-connector-tokio-marine-europe-s-a-french"
 nameOverride: "tx-ecd-connector-tokio-marine-europe-s-a-french"
 participant:
-  id: "BPNLRXy4LfyXutnU"
+  id: "BPNLOF4HDWOV4LDU"
 iatp:
-  id: "did:web:wallet.tx.the-sense.io:BPNLRXy4LfyXutnU"
+  id: "did:web:wallet.tx.the-sense.io:BPNLOF4HDWOV4LDU"
   trustedIssuers:
     - "did:web:wallet.tx.the-sense.io:BPNL000000000000"
   sts:
@@ -15,7 +15,7 @@ iatp:
     oauth:
       token_url: https://wallet.tx.the-sense.io/oauth/token
       client:
-        id: "BPNLRXy4LfyXutnU"
+        id: "BPNLOF4HDWOV4LDU"
         secret_alias: "edc-stub"
 
 controlplane:
