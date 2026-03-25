@@ -395,8 +395,8 @@ export default function CompanyRegistration() {
         startPolling(company.id, orgCredential.id, edcEnabled)
       }
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } }
-      setSubmitError(e.response?.data?.error || 'Registration failed')
+      const e = err as { response?: { data?: { error?: string; message?: string } } }
+      setSubmitError(e.response?.data?.message || e.response?.data?.error || 'Registration failed')
     }
     setLoading(false)
   }

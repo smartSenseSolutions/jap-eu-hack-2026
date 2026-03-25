@@ -2,7 +2,7 @@
   "name": "backend",
   "version": "1.0.0",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "ts-node-dev --respawn --transpile-only --ignore-watch ../gitops --ignore-watch ../edc src/index.ts",
     "build": "prisma generate && tsc",
     "start": "node dist/index.js",
     "db:migrate": "prisma migrate deploy",

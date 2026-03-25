@@ -46,10 +46,6 @@ export async function commitArgoApp(tenantCode: string, bpn: string): Promise<vo
   await git.addConfig('user.name', gitUserName);
   await git.addConfig('user.email', gitUserEmail);
 
-  // Pull latest changes before staging to avoid push rejection
-  console.log(`[argo] Pulling latest changes from remote`);
-  await git.pull(authenticatedRemote, 'HEAD', ['--rebase']);
-
   // Stage both the Helm values file and the Argo Application manifest
   const filesToStage = [
     path.relative(repoPath, valuesOutputPath),
@@ -69,9 +65,9 @@ export async function commitArgoApp(tenantCode: string, bpn: string): Promise<vo
     console.log(`[argo] Files already committed for tenant "${tenantCode}" — skipping commit, will push existing commit`);
   }
 
-  // Always pull --rebase before push to handle concurrent pushes by other developers
-  console.log(`[argo] Pulling latest remote changes (rebase)`);
-  await git.pull(authenticatedRemote, 'HEAD', { '--rebase': 'true' });
+  // Pull --rebase with --autostash to handle dirty working tree (local .env changes, etc.)
+  console.log(`[argo] Pulling latest remote changes (rebase + autostash)`);
+  await git.pull(authenticatedRemote, 'HEAD', ['--rebase', '--autostash']);
 
   console.log(`[argo] Pushing to remote`);
   await git.push(authenticatedRemote, 'HEAD');
