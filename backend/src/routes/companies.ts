@@ -17,6 +17,7 @@ const router = Router();
 
 const PROVISIONING_SERVICE_URL = process.env.PROVISIONING_SERVICE_URL || 'http://localhost:3001';
 const ENABLE_EDC_PROVISIONING = process.env.ENABLE_EDC_PROVISIONING === 'true';
+const MAX_COMPANIES = process.env.MAX_COMPANIES ? parseInt(process.env.MAX_COMPANIES, 10) : null;
 
 /**
  * Derive a unique tenantCode for the company name.
@@ -166,6 +167,16 @@ router.post('/', requireRole('company_admin'), async (req, res) => {
   const resolvedCity       = locality      || cityOld;
   const resolvedCountry    = countryCode   || countryOld;
   const resolvedAdminEmail = contactEmail  || adminEmailOld;
+
+  if (MAX_COMPANIES !== null) {
+    const companyCount = await prisma.company.count();
+    if (companyCount >= MAX_COMPANIES) {
+      return res.status(403).json({
+        error: 'ONBOARDING_LIMIT_REACHED',
+        message: 'Demo capacity reached. This is a hackathon demo environment with a limited number of companies. Please contact the administrator.',
+      });
+    }
+  }
 
   if (!name) return res.status(400).json({ error: 'Company name is required' });
   if (!vatId && !eoriNumber && !resolvedCin && !resolvedGst && !leiCode && !euid) {

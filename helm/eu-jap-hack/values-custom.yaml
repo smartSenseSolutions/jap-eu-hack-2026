@@ -32,6 +32,7 @@ backend:
     KEYCLOAK_ADMIN_CLIENT_ID: "realm_admin_client"
     KEYCLOAK_ADMIN_CLIENT_SECRET: "<path:k8s-stack/data/jap-eu-hack#keycloakAdminClientSecret>"
     ENABLE_EDC_PROVISIONING: "false"
+    MAX_COMPANIES: "10"
     GAIAX_DID_DOMAIN: "jeh-api.tx.the-sense.io"
     GAIAX_DID_PATH: "v7"
     EDC_BASE_URL: "https://tata-motors-controlplane.tx.the-sense.io"
