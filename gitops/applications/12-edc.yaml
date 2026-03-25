@@ -1,10 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: edc-ms-company
+  name: edc-12
   namespace: argocd
   labels:
-    tenant: ms-company
+    tenant: 12
     managed-by: edc-provisioning
 spec:
   project: default
@@ -18,10 +18,10 @@ spec:
         - name: VAULT_SECRET
           value: vault-secret
         - name: HELM_VALUES_FILE
-          value: "values.yaml -f values-ms-company.yaml"
+          value: "values.yaml -f values-12.yaml"
   destination:
     server: https://kubernetes.default.svc
-    namespace: edc-ms-company
+    namespace: edc-12
   syncPolicy:
     automated:
       prune: true

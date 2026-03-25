@@ -1,12 +1,12 @@
 install:
   postgresql: false
   vault: false
-fullnameOverride: "tx-ecd-connector-ms-company"
-nameOverride: "tx-ecd-connector-ms-company"
+fullnameOverride: "tx-ecd-connector-12"
+nameOverride: "tx-ecd-connector-12"
 participant:
-  id: "BPNLuRs2n6TY9PQt"
+  id: "BPNL7QEKJNEK4GQJ"
 iatp:
-  id: "did:web:wallet.tx.the-sense.io:BPNLuRs2n6TY9PQt"
+  id: "did:web:wallet.tx.the-sense.io:BPNL7QEKJNEK4GQJ"
   trustedIssuers:
     - "did:web:wallet.tx.the-sense.io:BPNL000000000000"
   sts:
@@ -15,7 +15,7 @@ iatp:
     oauth:
       token_url: https://wallet.tx.the-sense.io/oauth/token
       client:
-        id: "BPNLuRs2n6TY9PQt"
+        id: "BPNL7QEKJNEK4GQJ"
         secret_alias: "edc-stub"
 
 controlplane:
@@ -36,7 +36,7 @@ controlplane:
     management:
       port: 8081
       path: /management
-      authKey: "ms-company"
+      authKey: "12"
       jwksUrl:
     control:
       port: 8083
@@ -50,7 +50,7 @@ controlplane:
     catalog:
       port: 8085
       path: /catalog
-      authKey: "ms-company"
+      authKey: "12"
 
   bdrs:
     cache_validity_seconds: 600
@@ -71,7 +71,7 @@ controlplane:
 
   ingresses:
     - enabled: true
-      hostname: "ms-company-protocol.tx.the-sense.io"
+      hostname: "12-protocol.tx.the-sense.io"
       annotations: {}
       endpoints:
         - protocol
@@ -79,12 +79,12 @@ controlplane:
       className: "nginx"
       tls:
         enabled: true
-        secretName: "edc-protocol-ms-company"
+        secretName: "edc-protocol-12"
       certManager:
         issuer: ""
         clusterIssuer: "letsencrypt-prod"
     - enabled: true
-      hostname: "ms-company-controlplane.tx.the-sense.io"
+      hostname: "12-controlplane.tx.the-sense.io"
       annotations: {}
       endpoints:
         - management
@@ -92,7 +92,7 @@ controlplane:
       className: "nginx"
       tls:
         enabled: true
-        secretName: "edc-control-ms-company-intranet"
+        secretName: "edc-control-12-intranet"
       certManager:
         issuer: ""
         clusterIssuer: "letsencrypt-prod"
@@ -153,14 +153,14 @@ dataplane:
 
   ingresses:
     - enabled: true
-      hostname: "ms-company-dataplane.tx.the-sense.io"
+      hostname: "12-dataplane.tx.the-sense.io"
       annotations: {}
       endpoints:
         - public
       className: "nginx"
       tls:
         enabled: true
-        secretName: "edc-dataplane-ms-company"
+        secretName: "edc-dataplane-12"
       certManager:
         issuer: ""
         clusterIssuer: "letsencrypt-prod"
@@ -177,11 +177,11 @@ dataplane:
 postgresql:
   # Shared PostgreSQL server running in edc-postgres namespace.
   # Database and user are created at runtime by the provisioning service.
-  jdbcUrl: "jdbc:postgresql://postgres.postgres-edc.svc.cluster.local:5432/edc_ms-company"
+  jdbcUrl: "jdbc:postgresql://postgres.postgres-edc.svc.cluster.local:5432/edc_12"
   auth:
-    database: "edc_ms-company"
-    username: "edc_ms-company"
-    password: "<path:k8s-stack/data/runtime_edc/tx_edc_connector_ms_company#dbpass>"
+    database: "edc_12"
+    username: "edc_12"
+    password: "<path:k8s-stack/data/runtime_edc/tx_edc_connector_12#dbpass>"
 
 vault:
   injector:
@@ -192,7 +192,7 @@ vault:
     postStart:
   hashicorp:
     url: "https://vault.the-sense.io"
-    token: "<path:k8s-stack/data/runtime_edc/tx_edc_connector_ms_company#vault-token>"
+    token: "<path:k8s-stack/data/runtime_edc/tx_edc_connector_12#vault-token>"
     timeout: 30
     healthCheck:
       enabled: false
