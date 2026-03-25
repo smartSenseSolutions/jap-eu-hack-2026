@@ -75,7 +75,7 @@ const STEP_NAMES = [
 
 // Step 1: Query catalog and find asset matching VIN
 export async function queryCatalog(vin: string, provider: EdcProviderConfig): Promise<{ assetId: string; offerId: string }> {
-  console.log(`[EDC Consumer] Querying catalog for VIN: ${vin}`);
+  console.log(`[EDC Consumer] Querying catalog for VIN: ${vin} on EDC ${EDC_MGMT_URL} (provider DSP: ${provider.dspUrl})`);
   const payload = {
     '@context': {
       '@vocab': 'https://w3id.org/edc/v0.0.1/ns/',
@@ -117,6 +117,7 @@ export async function queryCatalog(vin: string, provider: EdcProviderConfig): Pr
 
 // Step 2: Initiate contract negotiation
 export async function initiateNegotiation(offerId: string, assetId: string, provider: EdcProviderConfig): Promise<string> {
+  console.log(`[EDC Consumer] Initiating contract negotiation for asset ${assetId} on EDC ${EDC_MGMT_URL} (provider: ${provider.bpnl})`);
   const payload = {
     '@context': {
       '@vocab': 'https://w3id.org/edc/v0.0.1/ns/',
@@ -141,6 +142,7 @@ export async function initiateNegotiation(offerId: string, assetId: string, prov
 
 // Step 3: Poll for agreement until FINALIZED
 export async function waitForAgreement(negotiationId: string): Promise<string> {
+  console.log(`[EDC Consumer] Waiting for agreement finalization for negotiation ${negotiationId} on EDC ${EDC_MGMT_URL}`);
   await sleep(NEGOTIATION_INITIAL_DELAY);
 
   for (let attempt = 1; attempt <= NEGOTIATION_MAX_RETRIES; attempt++) {
@@ -164,6 +166,7 @@ export async function waitForAgreement(negotiationId: string): Promise<string> {
 
 // Step 4: Initiate transfer
 export async function initiateTransfer(assetId: string, contractAgreementId: string, provider: EdcProviderConfig): Promise<string> {
+  console.log(`[EDC Consumer] Initiating data transfer for asset ${assetId} (agreement: ${contractAgreementId}) on EDC ${EDC_MGMT_URL}`);
   const payload = {
     '@context': {
       '@vocab': 'https://w3id.org/edc/v0.0.1/ns/',
@@ -222,6 +225,7 @@ export async function getTransferProcess(contractAgreementId: string): Promise<s
 
 // Step 6: Get auth code (data address with endpoint + token)
 export async function getAuthCode(transferId: string): Promise<{ endpoint: string; authorization: string }> {
+  console.log(`[EDC Consumer] Obtaining auth token for transfer ${transferId} on EDC ${EDC_MGMT_URL}`);
   const response = await axios.get(
     `${EDC_MGMT_URL}/v2/edrs/${transferId}/dataaddress?auto_refresh=true`,
     { headers: { 'x-api-key': EDC_API_KEY }, timeout: 10000 },
@@ -239,6 +243,7 @@ export async function getAuthCode(transferId: string): Promise<{ endpoint: strin
 
 // Step 7: Fetch actual asset data from data plane
 export async function fetchAssetData(endpoint: string, authorization: string): Promise<any> {
+  console.log(`[EDC Consumer] Fetching asset data from data plane endpoint: ${endpoint}`);
   const response = await axios.get(endpoint, {
     headers: { Authorization: authorization },
     timeout: 30000,

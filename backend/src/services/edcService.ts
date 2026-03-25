@@ -78,10 +78,10 @@ export async function createAsset(
         timeout: 5000,
       },
     );
-    console.log('[edcService] Asset created:', JSON.stringify(response.data, null, 2));
+    console.log(`[edcService] Asset created on EDC ${edcConfig.baseUrl}:`, JSON.stringify(response.data, null, 2));
     return response.data;
   } catch (error: any) {
-    console.error('[edcService] Asset creation error:', error.response?.data || error.message);
+    console.error(`[edcService] Asset creation error on EDC ${edcConfig.baseUrl}:`, error.response?.data || error.message);
     throw new Error(
       `Failed to create asset in EDC: ${error.response?.data?.message || error.message}`,
     );
@@ -136,10 +136,10 @@ export async function createContractDefinition(
         timeout: 5000,
       },
     );
-    console.log('[edcService] Contract definition created:', JSON.stringify(response.data, null, 2));
+    console.log(`[edcService] Contract definition created on EDC ${edcConfig.baseUrl}:`, JSON.stringify(response.data, null, 2));
     return response.data;
   } catch (error: any) {
-    console.error('[edcService] Contract definition error:', error.response?.data || error.message);
+    console.error(`[edcService] Contract definition error on EDC ${edcConfig.baseUrl}:`, error.response?.data || error.message);
     throw new Error(
       `Failed to create contract definition in EDC: ${error.response?.data?.message || error.message}`,
     );
