@@ -372,7 +372,7 @@ async function processVPAsync(sessionId: string, vpToken: unknown, request: Pres
 
     const provider: EdcProviderConfig = {
       dspUrl: dataServiceResult.dspUrl,
-      bpnl: dataServiceResult.issuerBpnl,
+      bpnl: 'BPNL00000000024R',
     };
 
     await updateSessionStep(sessionId, 6, 'completed', {

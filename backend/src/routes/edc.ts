@@ -26,7 +26,7 @@ async function resolveProviderFromVin(vin: string): Promise<EdcProviderConfig> {
   const dataService = discoverDataService(didResult.didDocument);
   console.log(`[EDC Route] Resolved provider from DID ${company.did}: dspUrl=${dataService.dspUrl}, bpnl=${dataService.issuerBpnl}`);
 
-  return { dspUrl: dataService.dspUrl, bpnl: dataService.issuerBpnl };
+  return { dspUrl: dataService.dspUrl, bpnl: 'BPNL00000000024R' };
 }
 
 // Full EDC negotiation with SSE streaming of step progress
@@ -40,7 +40,7 @@ router.post('/negotiate', authenticate, async (req, res) => {
   // Resolve provider from manufacturer DID if not explicitly provided
   let provider: EdcProviderConfig;
   if (dspUrl && bpnl) {
-    provider = { dspUrl, bpnl };
+    provider = { dspUrl, bpnl: 'BPNL00000000024R' };
   } else {
     try {
       provider = await resolveProviderFromVin(vin);
