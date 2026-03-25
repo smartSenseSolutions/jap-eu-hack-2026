@@ -5,6 +5,11 @@ import { getApiBase } from '@eu-jap-hack/auth'
 
 const API_BASE = getApiBase()
 
+interface CompanyOption {
+  id: string
+  name: string
+}
+
 const catenaXGuidelines = [
   { section: 'Identification', fields: 'Manufacturer Part ID, Name at Manufacturer, Serial (VIN), Codes, Data Carrier, Classification', standard: 'CX-0143' },
   { section: 'Operation', fields: 'Manufacturer BPNL, Name, Facility, Manufacturing Date, Import Info', standard: 'CX-0143' },
@@ -186,10 +191,14 @@ export default function CreateCar() {
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [showGuidelines, setShowGuidelines] = useState(false)
+  const [companies, setCompanies] = useState<CompanyOption[]>([])
+  const [companiesLoading, setCompaniesLoading] = useState(true)
+  const [companiesError, setCompaniesError] = useState<string | null>(null)
+  const [manufacturerCompanyId, setManufacturerCompanyId] = useState('')
 
   // Step 0: Identification (was Vehicle Identity)
   const [identification, setIdentification] = useState({
-    manufacturerPartId: '', nameAtManufacturer: '', serial: '', make: 'Toyota', model: '', variant: '',
+    manufacturerPartId: '', nameAtManufacturer: '', serial: '', make: '', model: '', variant: '',
     year: 2025, color: '', bodyType: 'SUV', price: 25000,
     codes: '', dataCarrier: '', classification: 'Passenger Vehicle'
   })
@@ -275,11 +284,12 @@ export default function CreateCar() {
     const svcHist = (dpp.serviceHistory ?? {}) as Record<string, unknown>
     const dmgHist = (dpp.damageHistory ?? {}) as Record<string, unknown>
 
+    if (d.manufacturerCompanyId) setManufacturerCompanyId(String(d.manufacturerCompanyId))
     setIdentification({
       manufacturerPartId: String(identType.manufacturerPartId ?? ''),
       nameAtManufacturer: String(identType.nameAtManufacturer ?? ''),
       serial: '',  // VIN must be new
-      make: String(d.make ?? 'Toyota'),
+      make: String(d.make ?? ''),
       model: String(d.model ?? ''),
       variant: String(d.variant ?? ''),
       year: Number(d.year) || 2025,
@@ -370,6 +380,19 @@ export default function CreateCar() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    axios.get(`${API_BASE}/companies`)
+      .then(r => {
+        const list: CompanyOption[] = (r.data.companies ?? r.data).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))
+        setCompanies(list)
+        setCompaniesLoading(false)
+      })
+      .catch(() => {
+        setCompaniesError('Failed to load companies. Please refresh and try again.')
+        setCompaniesLoading(false)
+      })
+  }, [])
+
   const addService = () => {
     setServices([...services, { date: '', mileageKm: 0, serviceType: 'Regular Service', servicedBy: '', notes: '', cost: 0 }])
   }
@@ -388,6 +411,7 @@ export default function CreateCar() {
 
   const handleSubmit = async () => {
     if (!identification.serial || !identification.model) { alert('VIN (Serial) and Model are required'); return }
+    if (!manufacturerCompanyId) { alert('Please select a Manufacturer Company'); return }
     setSaving(true)
     try {
       const now = new Date().toISOString()
@@ -397,6 +421,7 @@ export default function CreateCar() {
       const car = {
         vin: identification.serial,
         make: identification.make,
+        manufacturerCompanyId,
         model: identification.model,
         variant: identification.variant,
         year: identification.year,
@@ -615,7 +640,28 @@ export default function CreateCar() {
             <div><label className={labelClass}>Serial (VIN) *</label><input value={identification.serial} onChange={e => setIdentification({...identification, serial: e.target.value.toUpperCase()})} placeholder="TOYO2025BZ4X0021" className={inputClass} /></div>
             <div><label className={labelClass}>Manufacturer Part ID</label><input value={identification.manufacturerPartId} onChange={e => setIdentification({...identification, manufacturerPartId: e.target.value})} placeholder="TOYO-BZ4X-FWD" className={inputClass} /></div>
             <div><label className={labelClass}>Name at Manufacturer</label><input value={identification.nameAtManufacturer} onChange={e => setIdentification({...identification, nameAtManufacturer: e.target.value})} placeholder="Toyota bZ4X FWD" className={inputClass} /></div>
-            <div><label className={labelClass}>Make</label><input value={identification.make} onChange={e => setIdentification({...identification, make: e.target.value})} className={inputClass} /></div>
+            <div>
+              <label className={labelClass}>Manufacturer Company *</label>
+              {companiesError ? (
+                <div className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{companiesError}</div>
+              ) : (
+                <select
+                  value={manufacturerCompanyId}
+                  onChange={e => {
+                    const selected = companies.find(c => c.id === e.target.value)
+                    setManufacturerCompanyId(e.target.value)
+                    setIdentification({ ...identification, make: selected?.name ?? '' })
+                  }}
+                  disabled={companiesLoading}
+                  className={inputClass}
+                >
+                  <option value="">{companiesLoading ? 'Loading companies…' : 'Select a company'}</option>
+                  {companies.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
             <div><label className={labelClass}>Model *</label><input value={identification.model} onChange={e => setIdentification({...identification, model: e.target.value})} placeholder="bZ4X" className={inputClass} /></div>
             <div><label className={labelClass}>Variant</label><input value={identification.variant} onChange={e => setIdentification({...identification, variant: e.target.value})} placeholder="LR Dark Edition" className={inputClass} /></div>
             <div><label className={labelClass}>Year</label><input type="number" value={identification.year} onChange={e => setIdentification({...identification, year: Number(e.target.value)})} className={inputClass} /></div>

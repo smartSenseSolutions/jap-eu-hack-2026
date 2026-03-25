@@ -21,9 +21,9 @@ router.get('/:vin', async (req, res) => {
   const dpp = (car.dpp ?? {}) as Record<string, unknown>;
   const mfgCred = dpp.manufacturerCredential as Record<string, unknown> | undefined;
   if (!mfgCred?.legalParticipantId) {
-    const company = await prisma.company.findFirst({
-      where: { name: { contains: car.make, mode: 'insensitive' } },
-    });
+    const company = car.manufacturerCompanyId
+      ? await prisma.company.findUnique({ where: { id: car.manufacturerCompanyId } })
+      : await prisma.company.findFirst({ where: { name: { contains: car.make, mode: 'insensitive' } } });
     if (company) {
       const orgCredential = await prisma.orgCredential.findFirst({
         where: { companyId: company.id },
@@ -80,9 +80,9 @@ router.post('/', requireRole('admin'), async (req, res) => {
   const dpp = (car.dpp ?? {}) as Record<string, unknown>;
   const existingMfgCred = dpp.manufacturerCredential as Record<string, unknown> | undefined;
   if (!existingMfgCred?.legalParticipantId) {
-    const company = await prisma.company.findFirst({
-      where: { name: { contains: car.make, mode: 'insensitive' } },
-    });
+    const company = car.manufacturerCompanyId
+      ? await prisma.company.findUnique({ where: { id: car.manufacturerCompanyId } })
+      : await prisma.company.findFirst({ where: { name: { contains: car.make, mode: 'insensitive' } } });
     if (company) {
       const orgCredential = await prisma.orgCredential.findFirst({
         where: { companyId: company.id },
@@ -117,6 +117,7 @@ router.post('/', requireRole('admin'), async (req, res) => {
       status: car.status || 'available',
       ownerId: car.ownerId,
       dpp: dpp as any,
+      manufacturerCompanyId: car.manufacturerCompanyId || null,
     },
   });
   res.status(201).json(created);
