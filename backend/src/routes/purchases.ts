@@ -16,7 +16,10 @@ router.post('/', requireRole('customer'), async (req, res) => {
   const userId = req.user?.preferred_username || req.body.userId;
   const { vin, userInfo } = req.body;
 
-  const car = await prisma.car.findUnique({ where: { vin } });
+  const car = await prisma.car.findUnique({
+    where: { vin },
+    include: { manufacturerCompany: true },
+  });
   if (!car) return res.status(404).json({ error: 'Car not found' });
   if (car.status === 'sold') return res.status(400).json({ error: 'Car already sold' });
 
@@ -25,9 +28,18 @@ router.post('/', requireRole('customer'), async (req, res) => {
   const purchaseDate = new Date();
   const ownerName = userInfo?.name || [req.user?.given_name, req.user?.family_name].filter(Boolean).join(' ') || 'Mario Sanchez';
 
-  // Create Ownership VC — issuer links to the seller's resolvable Legal Participant VC
+  // Resolve issuer from the car's manufacturer company and their OrgCredential
   const baseUrl = getVCBaseUrl();
-  const issuerCredentialUrl = `${baseUrl}/vc/org-cred-tata-001`;
+  const mfgCompany = car.manufacturerCompany;
+  const mfgOrgCred = mfgCompany
+    ? await prisma.orgCredential.findFirst({ where: { companyId: mfgCompany.id } })
+    : null;
+
+  const issuerName = mfgOrgCred?.legalName ?? mfgCompany?.name ?? car.make;
+  const issuerDid = mfgOrgCred?.did ?? mfgCompany?.did ?? `did:web:${car.make.toLowerCase().replace(/\s+/g, '-')}`;
+  const issuerCredentialUrl = mfgOrgCred
+    ? `${baseUrl}/api/org-credentials/${mfgOrgCred.id}`
+    : `${baseUrl}/api/org-credentials/make-${car.make.toLowerCase()}`;
 
   const credentialSubject = {
     ownerName,
@@ -38,7 +50,7 @@ router.post('/', requireRole('customer'), async (req, res) => {
     year: car.year,
     purchaseDate: purchaseDate.toISOString(),
     purchasePrice: car.price,
-    dealerName: 'Toyota Official',
+    dealerName: issuerName,
   };
 
   const credential = await prisma.credential.create({
@@ -46,7 +58,7 @@ router.post('/', requireRole('customer'), async (req, res) => {
       id: credentialId,
       type: 'OwnershipVC',
       issuerId: issuerCredentialUrl,
-      issuerName: 'Toyota',
+      issuerName,
       subjectId: userId,
       status: 'active',
       credentialSubject,
@@ -56,7 +68,7 @@ router.post('/', requireRole('customer'), async (req, res) => {
   // Also issue via walt.id OID4VCI (non-blocking)
   issueCredentialSimple({
     type: 'OwnershipVC',
-    issuerDid: 'did:web:toyota-motors',
+    issuerDid,
     subjectDid: `did:smartsense:${userId}`,
     credentialSubject,
   }).catch(() => {});
@@ -102,7 +114,7 @@ router.post('/', requireRole('customer'), async (req, res) => {
       year: car.year,
       price: car.price,
       purchaseDate,
-      dealerName: 'Toyota Official',
+      dealerName: issuerName,
       credentialId,
     },
   });
