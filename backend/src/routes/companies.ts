@@ -143,6 +143,80 @@ router.patch('/:id/edc-provisioning', async (req, res) => {
   }
 });
 
+/**
+ * DELETE /companies/:id
+ * Fully offboards a company.
+ *
+ * Step 1 — External resources (via provisioning service, synchronous):
+ *   a. Delete Vault secrets
+ *   b. Drop tenant PostgreSQL database + user
+ *   c. Remove Helm values file + Argo CD Application manifest from git
+ *      └─ Argo CD cascade-deletes K8s resources + namespace via finalizer
+ *
+ * Step 2 — Database records (only after Step 1 succeeds):
+ *   WalletCredential → Credential → OrgCredential → EdcProvisioning
+ *   → CompanyUser → Car (null FK) → Company
+ */
+router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  const company = await prisma.company.findUnique({
+    where: { id },
+    select: { id: true, name: true, tenantCode: true },
+  });
+  if (!company) return res.status(404).json({ error: 'Company not found' });
+
+  const { tenantCode } = company;
+
+  // Step 1: Deprovision external resources (Vault + Postgres EDC DB + git)
+  if (ENABLE_EDC_PROVISIONING && tenantCode) {
+    console.log(`[offboard] Calling provisioning service to deprovision tenant "${tenantCode}"`);
+    try {
+      await axios.delete(`${PROVISIONING_SERVICE_URL}/deprovision`, {
+        data: { companyId: id, tenantCode },
+        timeout: 120_000, // git push + vault + postgres can take time
+      });
+      console.log(`[offboard] Provisioning service deprovisioned tenant "${tenantCode}"`);
+    } catch (err: any) {
+      const detail = err.response?.data?.error || err.message;
+      console.error(`[offboard] Provisioning service deprovision FAILED for "${tenantCode}": ${detail}`);
+      return res.status(502).json({ error: `Deprovisioning failed: ${detail}` });
+    }
+  } else {
+    console.log(`[offboard] EDC provisioning disabled or no tenantCode — skipping external resource cleanup`);
+  }
+
+  // Step 2: Delete database records in dependency order
+  console.log(`[offboard] Deleting database records for company ${id}`);
+
+  // WalletCredential rows that reference this company's credentials
+  const companyCredentialIds = await prisma.credential.findMany({
+    where: { companyId: id },
+    select: { id: true },
+  });
+  if (companyCredentialIds.length > 0) {
+    await prisma.walletCredential.deleteMany({
+      where: { credentialId: { in: companyCredentialIds.map(c => c.id) } },
+    });
+  }
+
+  await prisma.credential.deleteMany({ where: { companyId: id } });
+  await prisma.orgCredential.deleteMany({ where: { companyId: id } });
+  await prisma.edcProvisioning.deleteMany({ where: { companyId: id } });
+  await prisma.companyUser.deleteMany({ where: { companyId: id } });
+
+  // Null out the manufacturer FK on cars rather than deleting them (cars have purchases/insurance)
+  await prisma.car.updateMany({
+    where: { manufacturerCompanyId: id },
+    data: { manufacturerCompanyId: null },
+  });
+
+  await prisma.company.delete({ where: { id } });
+
+  console.log(`[offboard] Company "${company.name}" (${id}) fully deleted`);
+  res.json({ ok: true, deleted: { companyId: id, tenantCode } });
+});
+
 router.post('/', requireRole('company_admin'), async (req, res) => {
   const onboardingStart = Date.now();
   // Support both old flat field names and new wizard field names

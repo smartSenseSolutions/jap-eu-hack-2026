@@ -77,6 +77,54 @@ export async function commitArgoApp(tenantCode: string, bpn: string): Promise<vo
   await triggerArgoSync(tenantCode);
 }
 
+/**
+ * Removes the per-tenant Argo CD Application manifest and Helm values file from git.
+ * Argo CD will detect the deleted Application (with cascade finalizer) and tear down all
+ * managed Kubernetes resources including the tenant namespace.
+ */
+export async function deleteArgoApp(tenantCode: string): Promise<void> {
+  const repoPath = process.env.GIT_REPO_PATH;
+  const gitRemoteUrl = process.env.GIT_REMOTE_URL;
+  const gitAuthToken = process.env.GIT_AUTH_TOKEN;
+  const gitUserName = process.env.GIT_USER_NAME || 'edc-provisioning-bot';
+  const gitUserEmail = process.env.GIT_USER_EMAIL || 'edc-provisioning@the-sense.io';
+
+  if (!repoPath) throw new Error('GIT_REPO_PATH is not set');
+  if (!gitRemoteUrl) throw new Error('GIT_REMOTE_URL is not set');
+  if (!gitAuthToken) throw new Error('GIT_AUTH_TOKEN is not set');
+
+  const argoAppPath = path.join(repoPath, 'gitops', 'applications', `${tenantCode}-edc.yaml`);
+  const valuesFilePath = path.join(repoPath, 'edc', 'tx-edc-eleven', `values-${tenantCode}.yaml`);
+
+  const filesToRemove: string[] = [];
+  if (fs.existsSync(argoAppPath)) filesToRemove.push(path.relative(repoPath, argoAppPath));
+  if (fs.existsSync(valuesFilePath)) filesToRemove.push(path.relative(repoPath, valuesFilePath));
+
+  if (filesToRemove.length === 0) {
+    console.log(`[argo] No files found for tenant "${tenantCode}" — nothing to delete`);
+    return;
+  }
+
+  const authenticatedRemote = gitRemoteUrl.replace('https://', `https://${gitAuthToken}@`);
+  const git: SimpleGit = simpleGit(repoPath);
+  await git.addConfig('user.name', gitUserName);
+  await git.addConfig('user.email', gitUserEmail);
+
+  console.log(`[argo] Pulling latest before delete`);
+  await git.pull(authenticatedRemote, 'HEAD', ['--rebase', '--autostash']);
+
+  console.log(`[argo] Removing files: ${filesToRemove.join(', ')}`);
+  await git.rm(filesToRemove);
+
+  const commitMessage = `chore: offboard EDC tenant ${tenantCode}`;
+  console.log(`[argo] Committing: "${commitMessage}"`);
+  await git.commit(commitMessage);
+
+  console.log(`[argo] Pushing to remote`);
+  await git.push(authenticatedRemote, 'HEAD');
+  console.log(`[argo] Push complete — Argo CD will cascade-delete resources within ~3 minutes`);
+}
+
 async function triggerArgoSync(tenantCode: string): Promise<void> {
   const argoServerUrl = process.env.ARGOCD_SERVER_URL;
   const argoAuthToken = process.env.ARGOCD_AUTH_TOKEN;

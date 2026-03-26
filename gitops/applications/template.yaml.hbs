@@ -12,6 +12,8 @@ metadata:
   labels:
     tenant: "{{tenantCode}}"
     managed-by: edc-provisioning
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:

@@ -11,7 +11,7 @@ const RETRY_CONFIG = {
 };
 
 export interface ProvisioningStatusPayload {
-  status: 'provisioning' | 'ready' | 'failed';
+  status: 'provisioning' | 'ready' | 'failed' | 'deprovisioned';
   attempts?: number;
   lastError?: string;
   vaultPath?: string;
@@ -37,7 +37,7 @@ export async function notifyBackend(
   payload: ProvisioningStatusPayload,
 ): Promise<void> {
   const url = `${BACKEND_URL}/companies/${companyId}/edc-provisioning`;
-  const isTerminal = payload.status === 'ready' || payload.status === 'failed';
+  const isTerminal = payload.status === 'ready' || payload.status === 'failed' || payload.status === 'deprovisioned';
 
   if (!isTerminal) {
     // Fire-and-forget for intermediate status updates

@@ -1,9 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { randomBytes } from 'crypto';
-import { writeTenantSecrets } from '../services/vault';
-import { createTenantDatabase } from '../services/postgres';
+import { writeTenantSecrets, deleteTenantSecrets } from '../services/vault';
+import { createTenantDatabase, deleteTenantDatabase } from '../services/postgres';
 import { generateValuesFile } from '../services/helm';
-import { commitArgoApp } from '../services/argo';
+import { commitArgoApp, deleteArgoApp } from '../services/argo';
 import { notifyBackend } from '../services/callback';
 import { withRetry } from '../utils/retry';
 
@@ -57,6 +57,41 @@ provisionRouter.get('/status/:companyId', async (req: Request, res: Response) =>
     inProgress: inProgress.has(req.params.companyId),
     note: 'For full status, call GET /companies/:id/edc-status on the backend',
   });
+});
+
+/**
+ * DELETE /deprovision
+ * Tears down all resources for an EDC tenant.
+ * Body: { companyId: string, tenantCode: string }
+ *
+ * Steps (in order):
+ *   1. Vault  — permanently delete all secret versions
+ *   2. PostgreSQL — drop tenant database + user
+ *   3. Git    — remove values file + Argo CD Application manifest and push
+ *      └─ Argo CD cascade-deletes K8s resources + namespace via finalizer
+ *   4. Backend callback with status "deprovisioned"
+ */
+provisionRouter.delete('/deprovision', async (req: Request, res: Response) => {
+  const { companyId, tenantCode } = req.body;
+
+  if (!companyId || !tenantCode) {
+    return res.status(400).json({ error: 'companyId and tenantCode are required' });
+  }
+
+  if (inProgress.has(companyId)) {
+    console.log(`[deprovision] Already in progress for company ${companyId} — ignoring duplicate`);
+    return res.status(409).json({ error: 'Deprovisioning already in progress for this company' });
+  }
+
+  inProgress.add(companyId);
+  try {
+    await runDeprovisioning(companyId, tenantCode);
+    res.status(200).json({ status: 'deprovisioned', companyId, tenantCode });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    inProgress.delete(companyId);
+  }
 });
 
 async function runProvisioning(
@@ -142,6 +177,42 @@ async function runProvisioning(
     provisionedAt: new Date().toISOString(),
   });
   console.log(`[provision] ===== Provisioning COMPLETE for tenant "${tenantCode}" =====`);
+}
+
+async function runDeprovisioning(companyId: string, tenantCode: string): Promise<void> {
+  console.log(`[deprovision] ===== Starting deprovisioning for tenant "${tenantCode}" =====`);
+
+  // Step 1: Vault — delete secrets
+  try {
+    console.log(`[deprovision] Step 1/3 — Vault`);
+    await withRetry(() => deleteTenantSecrets(tenantCode), 3, 3000, `vault:${tenantCode}`);
+  } catch (err: any) {
+    console.error(`[deprovision] Step 1 FAILED for "${tenantCode}": ${err.message}`);
+    await safeFail(companyId, `Vault secret deletion failed: ${err.message}`);
+    return;
+  }
+
+  // Step 2: PostgreSQL — drop database + user
+  try {
+    console.log(`[deprovision] Step 2/3 — PostgreSQL`);
+    await withRetry(() => deleteTenantDatabase(tenantCode), 3, 3000, `postgres:${tenantCode}`);
+  } catch (err: any) {
+    console.error(`[deprovision] Step 2 FAILED for "${tenantCode}": ${err.message}`);
+    await safeFail(companyId, `PostgreSQL deletion failed: ${err.message}`);
+    return;
+  }
+
+  // Step 3: Git — remove Argo Application + values file and push
+  try {
+    console.log(`[deprovision] Step 3/3 — Argo CD git delete`);
+    await withRetry(() => deleteArgoApp(tenantCode), 3, 5000, `argo:${tenantCode}`);
+  } catch (err: any) {
+    console.error(`[deprovision] Step 3 FAILED for "${tenantCode}": ${err.message}`);
+    await safeFail(companyId, `Argo CD Application deletion failed: ${err.message}`);
+    return;
+  }
+
+  console.log(`[deprovision] ===== Deprovisioning COMPLETE for tenant "${tenantCode}" =====`);
 }
 
 async function safeFail(companyId: string, message: string): Promise<void> {
