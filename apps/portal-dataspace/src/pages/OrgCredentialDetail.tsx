@@ -352,7 +352,7 @@ export default function OrgCredentialDetail() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {[
                       { l: 'Management URL', v: edcProv.managementUrl },
-                      { l: 'Protocol URL',   v: edcProv.protocolUrl },
+                      { l: 'Protocol URL',   v: edcProv.managementUrl ? edcProv.managementUrl.replace('-controlplane.', '-protocol.').replace('/management', '/api/v1/dsp') : edcProv.protocolUrl },
                       { l: 'Dataplane URL',  v: edcProv.dataplaneUrl },
                       { l: 'Helm Release',   v: edcProv.helmRelease },
                       { l: 'K8s Namespace',  v: edcProv.k8sNamespace },

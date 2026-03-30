@@ -345,7 +345,7 @@ export default function CompanyDetail() {
 
           {edc?.status === 'ready' && (
             <div className="flex-1 space-y-0">
-              {edc.protocolUrl   && <UrlRow label="DSP Protocol URL"   url={edc.protocolUrl} icon="🔗" />}
+              {edc.managementUrl && <UrlRow label="DSP Protocol URL"   url={edc.managementUrl.replace('-controlplane.', '-protocol.').replace('/management', '/api/v1/dsp')} icon="🔗" />}
               {edc.managementUrl && <UrlRow label="Management API URL" url={edc.managementUrl} icon="⚙️" />}
               {edc.dataplaneUrl  && <UrlRow label="Dataplane URL"      url={edc.dataplaneUrl} icon="📡" />}
             </div>

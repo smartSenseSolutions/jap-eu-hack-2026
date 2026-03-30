@@ -373,7 +373,7 @@ export default function RegistrationSuccess() {
           {/* Ready — show all EDC config */}
           {edc?.status === 'ready' && (
             <div className="space-y-0">
-              {edc.protocolUrl    && <ConfigRow label="DSP Protocol URL"    value={edc.protocolUrl} />}
+              {edc.managementUrl  && <ConfigRow label="DSP Protocol URL"    value={edc.managementUrl.replace('-controlplane.', '-protocol.').replace('/management', '/api/v1/dsp')} />}
               {edc.managementUrl  && <ConfigRow label="Management API URL"  value={edc.managementUrl} />}
               {edc.dataplaneUrl   && <ConfigRow label="Dataplane URL"       value={edc.dataplaneUrl} />}
               {edc.apiKey         && <ConfigRow label="API Key"             value={edc.apiKey} />}
