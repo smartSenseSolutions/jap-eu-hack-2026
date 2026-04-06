@@ -14,7 +14,7 @@ tls:
 # Backend API
 # =============================================================================
 backend:
-  replicaCount: 1
+  replicaCount: 0
   image:
     repository: eu-jap-hack/backend
     tag: "1.0.41"
@@ -65,7 +65,7 @@ backend:
 # Frontend Portals
 # =============================================================================
 portalDataspace:
-  replicaCount: 1
+  replicaCount: 0
   image:
     repository: eu-jap-hack/portal-dataspace
     tag: "1.0.41"
@@ -88,7 +88,7 @@ portalDataspace:
       memory: 128Mi
 
 portalTataAdmin:
-  replicaCount: 1
+  replicaCount: 0
   image:
     repository: eu-jap-hack/portal-tata-admin
     tag: "1.0.41"
@@ -111,7 +111,7 @@ portalTataAdmin:
       memory: 128Mi
 
 portalTataPublic:
-  replicaCount: 1
+  replicaCount: 0
   image:
     repository: eu-jap-hack/portal-tata-public
     tag: "1.0.41"
@@ -134,7 +134,7 @@ portalTataPublic:
       memory: 128Mi
 
 portalWallet:
-  replicaCount: 1
+  replicaCount: 0
   image:
     repository: eu-jap-hack/portal-wallet
     tag: "1.0.41"
@@ -156,7 +156,7 @@ portalWallet:
       memory: 128Mi
 
 portalInsurance:
-  replicaCount: 1
+  replicaCount: 0
   image:
     repository: eu-jap-hack/portal-insurance
     tag: "1.0.41"
@@ -179,7 +179,7 @@ portalInsurance:
       memory: 128Mi
 
 portalCompany:
-  replicaCount: 1
+  replicaCount: 0
   image:
     repository: eu-jap-hack/portal-company
     tag: "1.0.41"
@@ -206,7 +206,7 @@ portalCompany:
 # =============================================================================
 keycloak:
   enabled: true
-  replicaCount: 1
+  replicaCount: 0
   image:
     repository: eu-jap-hack/keycloak
     tag: "1.0.41"
@@ -234,7 +234,7 @@ keycloak:
 # =============================================================================
 provisioning:
   enabled: true
-  replicaCount: 1
+  replicaCount: 0
   image:
     repository: eu-jap-hack/provisioning
     tag: "1.0.41"
@@ -270,7 +270,7 @@ provisioning:
 # Walt.id Services
 # =============================================================================
 waltidWalletApi:
-  replicaCount: 1
+  replicaCount: 0
   image:
     registry: docker.io
     repository: waltid/wallet-api
@@ -289,7 +289,7 @@ waltidWalletApi:
       memory: 512Mi
 
 waltidIssuerApi:
-  replicaCount: 1
+  replicaCount: 0
   image:
     registry: docker.io
     repository: waltid/issuer-api
@@ -308,7 +308,7 @@ waltidIssuerApi:
       memory: 512Mi
 
 waltidVerifierApi:
-  replicaCount: 1
+  replicaCount: 0
   image:
     registry: docker.io
     repository: waltid/verifier-api
