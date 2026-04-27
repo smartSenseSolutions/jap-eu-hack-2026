@@ -71,7 +71,7 @@ controlplane:
 
   ingresses:
     - enabled: true
-      hostname: "shelby-mustang-protocol.tx.the-sense.io"
+      hostname: "shelby-mustang-protocol.dataspace.smartsenselabs.com"
       annotations: {}
       endpoints:
         - protocol
@@ -84,7 +84,7 @@ controlplane:
         issuer: ""
         clusterIssuer: "letsencrypt-prod"
     - enabled: true
-      hostname: "shelby-mustang-controlplane.tx.the-sense.io"
+      hostname: "shelby-mustang-controlplane.dataspace.smartsenselabs.com"
       annotations: {}
       endpoints:
         - management
@@ -153,7 +153,7 @@ dataplane:
 
   ingresses:
     - enabled: true
-      hostname: "shelby-mustang-dataplane.tx.the-sense.io"
+      hostname: "shelby-mustang-dataplane.dataspace.smartsenselabs.com"
       annotations: {}
       endpoints:
         - public
