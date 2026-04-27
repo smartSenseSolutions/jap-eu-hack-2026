@@ -18,6 +18,23 @@ const router = Router();
 
 const PROVISIONING_SERVICE_URL = process.env.PROVISIONING_SERVICE_URL || 'http://localhost:3001';
 const ENABLE_EDC_PROVISIONING = process.env.ENABLE_EDC_PROVISIONING === 'true';
+
+// Derive EDC base domain from APP_BASE_URL.
+// e.g. "https://jeh-api.dataspace.smartsenselabs.com" → "dataspace.smartsenselabs.com"
+// Can be overridden explicitly via EDC_BASE_DOMAIN env var.
+function deriveEdcBaseDomain(): string {
+  if (process.env.EDC_BASE_DOMAIN) return process.env.EDC_BASE_DOMAIN;
+  const appBaseUrl = process.env.APP_BASE_URL || '';
+  try {
+    const hostname = new URL(appBaseUrl).hostname; // e.g. "jeh-api.dataspace.smartsenselabs.com"
+    const parts = hostname.split('.');
+    // Strip the first subdomain (e.g. "jeh-api") to get the base domain
+    return parts.length > 2 ? parts.slice(1).join('.') : hostname;
+  } catch {
+    return 'localhost';
+  }
+}
+const EDC_BASE_DOMAIN = deriveEdcBaseDomain();
 const MAX_COMPANIES = process.env.MAX_COMPANIES ? parseInt(process.env.MAX_COMPANIES, 10) : null;
 
 /**
@@ -96,9 +113,9 @@ router.patch('/:id/edc-provisioning', async (req, res) => {
       const t = company.tenantCode;
       const u = t.replace(/-/g, '_');
       derivedConfig = {
-        managementUrl: `https://${t}-controlplane.tx.the-sense.io/management`,
-        protocolUrl:   'https://toyota-protocol.tx.the-sense.io/api/v1/dsp#BPNL00000000024R',
-        dataplaneUrl:  `https://${t}-dataplane.tx.the-sense.io`,
+        managementUrl: `https://${t}-controlplane.${EDC_BASE_DOMAIN}/management`,
+        protocolUrl:   `https://${t}-protocol.${EDC_BASE_DOMAIN}/api/v1/dsp#${company.bpn}`,
+        dataplaneUrl:  `https://${t}-dataplane.${EDC_BASE_DOMAIN}`,
         apiKey:        t,
         helmRelease:   `edc-${t}`,
         argoAppName:   `edc-${t}`,
