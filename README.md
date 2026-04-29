@@ -44,12 +44,12 @@ Think of it like an international airport — planes from every country land, tr
 
 **The gateway does four things:**
 
-| What | How | Business Value |
-|------|-----|----------------|
-| **Discovers** endpoints | Resolves digital identity documents (DIDs) to find where data lives | No phone calls or emails to ask "what's your API URL?" |
-| **Translates** protocols | Converts between EDC and CADDE data-sharing protocols | No custom integration per partner |
-| **Transforms** formats | Converts EU vehicle data (DPP) to Japanese insurance standard (JASPAR) | No manual data re-entry |
-| **Enforces** trust | Verifies every participant's identity and consent before sharing anything | No unauthorized data access |
+| What                     | How                                                                       | Business Value                                         |
+| ------------------------ | ------------------------------------------------------------------------- | ------------------------------------------------------ |
+| **Discovers** endpoints  | Resolves digital identity documents (DIDs) to find where data lives       | No phone calls or emails to ask "what's your API URL?" |
+| **Translates** protocols | Converts between EDC and CADDE data-sharing protocols                     | No custom integration per partner                      |
+| **Transforms** formats   | Converts EU vehicle data (DPP) to Japanese insurance standard (JASPAR)    | No manual data re-entry                                |
+| **Enforces** trust       | Verifies every participant's identity and consent before sharing anything | No unauthorized data access                            |
 
 ---
 
@@ -59,11 +59,11 @@ We demonstrate the complete gateway with one real-world scenario: **a Japanese i
 
 ### The People in the Story
 
-| Person / Company    | Role                          |
-| ------------------- | ----------------------------- |
-| **TATA Motors**     | European car manufacturer — owns and provides vehicle data |
+| Person / Company    | Role                                                                |
+| ------------------- | ------------------------------------------------------------------- |
+| **TATA Motors**     | European car manufacturer — owns and provides vehicle data          |
 | **Digit Insurance** | Japanese insurer — wants to assess the car's risk to price a policy |
-| **Mario Sanchez**   | Car owner — must approve any sharing of his vehicle's data |
+| **Mario Sanchez**   | Car owner — must approve any sharing of his vehicle's data          |
 
 ### What Happens, Step by Step
 
@@ -106,6 +106,7 @@ We demonstrate the complete gateway with one real-world scenario: **a Japanese i
 ### 1. Every Company Gets a Real Digital Identity — Automatically
 
 When a company registers on the platform, it instantly gets a **W3C-standard digital identity** (`did:web`) that:
+
 - Is **publicly resolvable** by any compliant system worldwide
 - **Passes Gaia-X compliance** — the EU's trust framework for data spaces
 - **Automatically includes its data-sharing endpoint** once its connector is live
@@ -127,6 +128,7 @@ Traditionally, getting Gaia-X compliance requires manual paperwork, IT setup, an
 ### 3. Data Endpoints Are Discovered, Not Configured
 
 When Digit Insurance wants TATA's vehicle data, nobody types a URL or calls an IT department. The platform:
+
 1. Reads the car's manufacturer credential
 2. Resolves TATA's digital identity document
 3. Finds the exact data endpoint listed inside it
@@ -137,6 +139,7 @@ When Digit Insurance wants TATA's vehicle data, nobody types a URL or calls an I
 ### 4. Consent Is Non-Negotiable
 
 No data moves without the owner's explicit approval. Mario must:
+
 - Receive a clear description of who is asking, what they want, and why
 - Actively approve in his wallet
 - All access expires after 1 hour automatically
@@ -169,12 +172,12 @@ No data moves without the owner's explicit approval. Mario must:
 
 ### The 4 Layers of the Gateway
 
-| Layer | Business Purpose | What It Does Technically |
-|-------|-----------------|--------------------------|
-| **Discovery** | Find any partner's data endpoint automatically | Resolves `did:web` identity documents; DSP URLs auto-published after connector setup |
-| **Protocol Translation** | Connect EU and Japanese systems without rebuilding either | Bridges EDC ↔ CADDE negotiation protocols |
-| **Data Transformation** | Speak each partner's data language | Converts EU Digital Product Passport → Japanese JASPAR (24 fields, 7 categories) |
-| **Trust Enforcement** | Ensure only verified, consenting parties exchange data | Gaia-X compliance VCs + OpenID4VP verification + consent gates + time-limited access |
+| Layer                    | Business Purpose                                          | What It Does Technically                                                             |
+| ------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **Discovery**            | Find any partner's data endpoint automatically            | Resolves `did:web` identity documents; DSP URLs auto-published after connector setup |
+| **Protocol Translation** | Connect EU and Japanese systems without rebuilding either | Bridges EDC ↔ CADDE negotiation protocols                                            |
+| **Data Transformation**  | Speak each partner's data language                        | Converts EU Digital Product Passport → Japanese JASPAR (24 fields, 7 categories)     |
+| **Trust Enforcement**    | Ensure only verified, consenting parties exchange data    | Gaia-X compliance VCs + OpenID4VP verification + consent gates + time-limited access |
 
 ---
 
@@ -207,41 +210,41 @@ No data moves without the owner's explicit approval. Mario must:
 
 The platform automatically converts the EU standard vehicle history (Digital Product Passport) into the Japanese insurance format (JASPAR):
 
-| EU Vehicle Data | → | Japanese Insurance Format |
-|----------------|---|--------------------------|
-| Mileage (km) | → | Odometer reading |
-| Motor type | → | Powertrain classification |
-| CO₂ emissions | → | Sustainability metrics |
-| Damage history | → | Risk indicators |
-| Type approval | → | Regulatory compliance |
-| Ownership chain | → | Provenance record |
-| Service history | → | Maintenance log |
+| EU Vehicle Data | →   | Japanese Insurance Format |
+| --------------- | --- | ------------------------- |
+| Mileage (km)    | →   | Odometer reading          |
+| Motor type      | →   | Powertrain classification |
+| CO₂ emissions   | →   | Sustainability metrics    |
+| Damage history  | →   | Risk indicators           |
+| Type approval   | →   | Regulatory compliance     |
+| Ownership chain | →   | Provenance record         |
+| Service history | →   | Maintenance log           |
 
 **24 data fields mapped automatically** with quality tracking — the system tells you exactly how complete the data is and flags any missing critical fields.
 
 ### Risk Scoring (100-Point Scale)
 
-| Factor | Max Score | What It Measures |
-|--------|-----------|-----------------|
-| Vehicle Age | 15 | Newer = lower risk |
-| Safety Rating | 15 | NCAP star rating |
-| Regulatory Compliance | 10 | Type approval, roadworthiness |
-| Powertrain & Battery | 10 | EV battery health, motor type |
-| Sustainability | 5 | Emissions, energy label |
-| Ownership Confidence | 15 | Single owner, verified credentials |
-| Mileage & Usage | 15 | Lower mileage = lower wear |
-| Damage History | 10 | Incidents, repairs |
-| Data Completeness | 5 | Quality of available data |
+| Factor                | Max Score | What It Measures                   |
+| --------------------- | --------- | ---------------------------------- |
+| Vehicle Age           | 15        | Newer = lower risk                 |
+| Safety Rating         | 15        | NCAP star rating                   |
+| Regulatory Compliance | 10        | Type approval, roadworthiness      |
+| Powertrain & Battery  | 10        | EV battery health, motor type      |
+| Sustainability        | 5         | Emissions, energy label            |
+| Ownership Confidence  | 15        | Single owner, verified credentials |
+| Mileage & Usage       | 15        | Lower mileage = lower wear         |
+| Damage History        | 10        | Incidents, repairs                 |
+| Data Completeness     | 5         | Quality of available data          |
 
 ### Insurance Packages by Risk Score
 
-| Score  | Package          | Typical Annual Premium | Coverage Level |
-| ------ | ---------------- | ---------------------- | -------------- |
+| Score  | Package          | Typical Annual Premium | Coverage Level                             |
+| ------ | ---------------- | ---------------------- | ------------------------------------------ |
 | 85–100 | **Premium Plus** | €800 – €1,050          | Full comprehensive, zero excess, worldwide |
-| 70–84  | **Premium**      | €950 – €1,250          | Full comprehensive, low excess |
-| 55–69  | **Standard**     | €1,150 – €1,550        | Comprehensive, standard excess |
-| 40–54  | **Basic Plus**   | €1,400 – €1,900        | Third-party, fire & theft |
-| 0–39   | **Basic**        | €1,800 – €2,500        | Third-party only (manual review) |
+| 70–84  | **Premium**      | €950 – €1,250          | Full comprehensive, low excess             |
+| 55–69  | **Standard**     | €1,150 – €1,550        | Comprehensive, standard excess             |
+| 40–54  | **Basic Plus**   | €1,400 – €1,900        | Third-party, fire & theft                  |
+| 0–39   | **Basic**        | €1,800 – €2,500        | Third-party only (manual review)           |
 
 EV owners get automatic add-on options: charging cable theft, home charger insurance, battery warranty extension.
 
@@ -249,14 +252,14 @@ EV owners get automatic add-on options: charging cable theft, home charger insur
 
 ## Trust & Security — Plain Language
 
-| What We Protect | How | Why It Matters |
-|----------------|-----|----------------|
-| **Company identity** | Every company gets a unique, verifiable digital identity (Gaia-X certified) | You always know exactly who you're dealing with |
-| **Data ownership** | Car owners must explicitly approve every data request | Owners stay in control — GDPR compliant by design |
-| **Access expiry** | All data access expires after 1 hour | No "set and forget" data leaks |
-| **Credential integrity** | All credentials cryptographically signed (RSA-2048) | Credentials cannot be forged or tampered with |
-| **Signing keys** | Platform's signing key stored in database — survives restarts | Consistency across deployments and updates |
-| **Policy enforcement** | Data usage policies (ODRL) enforced before any transfer | Providers control exactly how their data is used |
+| What We Protect          | How                                                                         | Why It Matters                                    |
+| ------------------------ | --------------------------------------------------------------------------- | ------------------------------------------------- |
+| **Company identity**     | Every company gets a unique, verifiable digital identity (Gaia-X certified) | You always know exactly who you're dealing with   |
+| **Data ownership**       | Car owners must explicitly approve every data request                       | Owners stay in control — GDPR compliant by design |
+| **Access expiry**        | All data access expires after 1 hour                                        | No "set and forget" data leaks                    |
+| **Credential integrity** | All credentials cryptographically signed (RSA-2048)                         | Credentials cannot be forged or tampered with     |
+| **Signing keys**         | Platform's signing key stored in database — survives restarts               | Consistency across deployments and updates        |
+| **Policy enforcement**   | Data usage policies (ODRL) enforced before any transfer                     | Providers control exactly how their data is used  |
 
 ---
 
@@ -264,13 +267,13 @@ EV owners get automatic add-on options: charging cable theft, home charger insur
 
 The gateway is **industry-agnostic**. The same platform works for any cross-border data sharing scenario:
 
-| Industry | Data Provider | Data Consumer | What Gets Shared |
-| -------- | ------------- | ------------- | ---------------- |
-| **Automotive** | Car manufacturer (EU) | Insurer (Japan) | Vehicle history, DPP |
-| **Healthcare** | Hospital (EU) | Research institute (JP) | Anonymised patient records |
-| **Supply Chain** | Manufacturer | Customs authority | Origin certificates, shipment data |
-| **Energy** | Grid operator | Carbon auditor | Production data, emissions |
-| **Finance** | Bank (EU) | Regulator (JP) | Compliance reports, transaction data |
+| Industry         | Data Provider         | Data Consumer           | What Gets Shared                     |
+| ---------------- | --------------------- | ----------------------- | ------------------------------------ |
+| **Automotive**   | Car manufacturer (EU) | Insurer (Japan)         | Vehicle history, DPP                 |
+| **Healthcare**   | Hospital (EU)         | Research institute (JP) | Anonymised patient records           |
+| **Supply Chain** | Manufacturer          | Customs authority       | Origin certificates, shipment data   |
+| **Energy**       | Grid operator         | Carbon auditor          | Production data, emissions           |
+| **Finance**      | Bank (EU)             | Regulator (JP)          | Compliance reports, transaction data |
 
 > Change the data format, keep the gateway.
 
@@ -278,29 +281,29 @@ The gateway is **industry-agnostic**. The same platform works for any cross-bord
 
 ## Key Numbers
 
-| Metric | Value |
-|--------|-------|
-| End-to-end insurance quote time | 30–60 seconds |
+| Metric                                 | Value                         |
+| -------------------------------------- | ----------------------------- |
+| End-to-end insurance quote time        | 30–60 seconds                 |
 | Data fields transformed (DPP → JASPAR) | 24 fields across 7 categories |
-| Risk scoring factors | 9 factors, 100-point scale |
-| Steps in EDC data negotiation | 7 steps (fully automated) |
-| Steps in VP verification pipeline | 11 steps |
-| Data access session lifetime | 1 hour (auto-expires) |
-| Database models | 15+ |
-| Web portals | 6 |
+| Risk scoring factors                   | 9 factors, 100-point scale    |
+| Steps in EDC data negotiation          | 7 steps (fully automated)     |
+| Steps in VP verification pipeline      | 11 steps                      |
+| Data access session lifetime           | 1 hour (auto-expires)         |
+| Database models                        | 15+                           |
+| Web portals                            | 6                             |
 
 ---
 
 ## Future Roadmap
 
-| Milestone | What It Unlocks |
-|-----------|----------------|
-| **Multi-region mesh** | Connect EU + Japan + India + ASEAN through a single federated gateway |
-| **EBSI / eIDAS integration** | Cross-border legal identity recognised under EU law |
-| **AI-powered underwriting** | ML models trained on real historical underwriting data |
-| **Catena-X alignment** | Native support for automotive battery passport and traceability |
-| **Zero-knowledge proofs** | Prove a car meets criteria without revealing the raw data |
-| **Per-company keypairs** | True self-sovereign keys — platform holds nothing on behalf of companies |
+| Milestone                    | What It Unlocks                                                          |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| **Multi-region mesh**        | Connect EU + Japan + India + ASEAN through a single federated gateway    |
+| **EBSI / eIDAS integration** | Cross-border legal identity recognised under EU law                      |
+| **AI-powered underwriting**  | ML models trained on real historical underwriting data                   |
+| **Catena-X alignment**       | Native support for automotive battery passport and traceability          |
+| **Zero-knowledge proofs**    | Prove a car meets criteria without revealing the raw data                |
+| **Per-company keypairs**     | True self-sovereign keys — platform holds nothing on behalf of companies |
 
 ---
 
@@ -319,25 +322,98 @@ git clone https://github.com/smartSenseSolutions/jap-eu-hack-2026.git
 cd jap-eu-hack-2026
 npm install
 cp backend/.env.example backend/.env
-docker compose up -d
+# Edit backend/.env — at minimum set the seed-data EDC URLs (TOYOTA_EDC_*,
+# TOKIOMARINE_EDC_*) to the FQDNs of your deployed EDC ingresses. The seed
+# script will refuse to run without them.
+
+# Bring up the full stack (skip the internal `provisioning` service)
+docker compose up -d \
+  postgres keycloak \
+  waltid-wallet-api waltid-issuer-api waltid-verifier-api \
+  backend \
+  portal-dataspace portal-tata-admin portal-tata-public \
+  portal-wallet portal-insurance portal-company
 ```
+
+The backend is published on host port **3000** (container internal `:8000`). Portals
+read their runtime config from compose env, so changes to `docker-compose.yml`
+require a portal recreate (`docker compose up -d <portal>`), not a `restart`.
 
 ### Enable Gaia-X Compliance Locally
 
-For Gaia-X to verify company identities, the backend needs a public URL. Use ngrok:
+For Gaia-X to verify company identities, the backend's DID document needs to be
+fetchable from a public URL. Run ngrok against the backend's host port:
 
 ```bash
-# In a separate terminal:
-ngrok http 8000
+# In a separate terminal — note the port is 3000, not 8000:
+ngrok http 3000
 
-# Copy the URL shown (e.g. https://abc123.ngrok-free.app)
-# Add to backend/.env:
+# Copy the URL shown (e.g. https://abc123.ngrok-free.app) and update backend/.env:
 GAIAX_DID_DOMAIN=abc123.ngrok-free.app
 APP_BASE_URL=https://abc123.ngrok-free.app
 
-# Restart backend
-npm run dev --prefix backend
+# Recreate the backend so it picks up the new env (restart does NOT re-read env_file):
+docker compose up -d backend
 ```
+
+### Reset / Clean Restart
+
+The seed is idempotent on existing data, but if you want a guaranteed clean slate
+(e.g. after editing migrations or seed data) — wipe volumes and recreate:
+
+```bash
+# Stop everything and drop the postgres volume
+docker compose down -v
+
+# Bring it back up (same command as Quick Start above)
+docker compose up -d \
+  postgres keycloak \
+  waltid-wallet-api waltid-issuer-api waltid-verifier-api \
+  backend \
+  portal-dataspace portal-tata-admin portal-tata-public \
+  portal-wallet portal-insurance portal-company
+
+# Tail backend boot to confirm migrations + seed ran
+docker compose logs -f backend
+```
+
+Keycloak's H2 database lives inside the container layer (not in a named volume),
+so `down -v` does NOT reset Keycloak. If you change `keycloak/realm-export.json`
+and need a fresh import:
+
+```bash
+docker compose rm -fs keycloak && docker compose up -d keycloak
+```
+
+### Toggle Auth
+
+```bash
+# In backend/.env: AUTH_ENABLED=true  (or false)
+docker compose up -d backend     # NOT `restart` — env_file is only re-read on recreate
+docker compose logs backend | grep "auth:"   # confirms ON / OFF
+```
+
+### Useful Commands
+
+```bash
+docker compose ps                        # service status
+docker compose logs -f backend           # tail backend logs
+docker compose logs -f portal-dataspace  # tail a portal's nginx logs
+
+# Inspect seeded EDC URLs
+docker compose exec -T postgres psql -U postgres -d eu_jap_hack \
+  -c 'SELECT "companyId", "managementUrl" FROM edc_provisioning;'
+```
+
+### Demo Login Credentials
+
+| Portal                          | Username            | Password      |
+| ------------------------------- | ------------------- | ------------- |
+| Dataspace Registry / Company    | `company-admin`     | `company`     |
+| TATA Admin                      | `toyota-admin`      | `toyota`      |
+| Public Showroom (Tata)          | `toyota-customer`   | `toyota`      |
+| Wallet                          | `mario-sanchez`     | `mario`       |
+| Insurance                       | `tokiomarine-agent` | `tokiomarine` |
 
 ### Access the Portals
 
