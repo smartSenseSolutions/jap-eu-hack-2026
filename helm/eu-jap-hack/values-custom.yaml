@@ -46,6 +46,13 @@ backend:
     EDC_NEGOTIATION_INITIAL_DELAY_MS: "5000"
     EDC_NEGOTIATION_POLL_INTERVAL_MS: "5000"
     EDC_NEGOTIATION_MAX_RETRIES: "3"
+    # Seed-data EDC URLs — real FQDNs of the deployed tenant EDCs.
+    TOYOTA_EDC_PROTOCOL_URL: "https://toyota-protocol.dataspace.smartsenselabs.com/api/v1/dsp"
+    TOYOTA_EDC_MANAGEMENT_URL: "https://toyota-controlplane.dataspace.smartsenselabs.com/management"
+    TOYOTA_EDC_DATAPLANE_URL: "https://toyota-dataplane.dataspace.smartsenselabs.com"
+    TOKIOMARINE_EDC_PROTOCOL_URL: "https://nissan-motors-protocol.dataspace.smartsenselabs.com/api/v1/dsp"
+    TOKIOMARINE_EDC_MANAGEMENT_URL: "https://nissan-motors-controlplane.dataspace.smartsenselabs.com/management"
+    TOKIOMARINE_EDC_DATAPLANE_URL: "https://nissan-motors-dataplane.dataspace.smartsenselabs.com"
     CADDE_ASSET_ID: "asset_7"
     CADDE_PARTNER_EDC_DSP_URL: "https://toyota-protocol.tx.the-sense.io/api/v1/dsp"
     CADDE_PARTNER_EDC_BPN: "BPNL00000000024R"

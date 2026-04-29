@@ -188,7 +188,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "toyota-admin",
+          "value": "toyota",
           "temporary": false
         }
       ],
@@ -238,6 +238,21 @@
         }
       ],
       "realmRoles": ["company_admin"]
+    },
+    {
+      "username": "toyota-customer",
+      "enabled": true,
+      "email": "toyota-customer@toyota-global.com",
+      "firstName": "Toyota",
+      "lastName": "Customer",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "toyota",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["customer"]
     }
   ]
 }

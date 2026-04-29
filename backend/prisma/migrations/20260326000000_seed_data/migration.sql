@@ -3,7 +3,10 @@
 
 -- ─── Companies ────────────────────────────────────────────────────────────────
 
-INSERT INTO "companies" ("id", "name", "vatId", "eoriNumber", "cin", "gstNumber", "country", "city", "address", "adminName", "adminEmail", "did", "registeredAt", "createdAt", "updatedAt")
+-- did:web prefix uses 'localhost%3A8000' as the hosting domain — matches the default in
+-- backend/src/services/did-resolver.ts when GAIAX_DID_DOMAIN is unset. Production should
+-- override the seeded did via the running app's seed.ts (which reads GAIAX_DID_DOMAIN).
+INSERT INTO "companies" ("id", "name", "vatId", "eoriNumber", "cin", "gstNumber", "country", "city", "address", "adminName", "adminEmail", "did", "bpn", "tenantCode", "registeredAt", "createdAt", "updatedAt")
 VALUES
   (
     'company-toyota-001',
@@ -17,7 +20,9 @@ VALUES
     '1 Toyota-cho, Toyota City, Aichi 471-8571, Japan',
     'Akio Toyoda',
     'admin@toyota-global.com',
-    'did:eu-dataspace:company-toyota-001',
+    'did:web:localhost%3A8000:company:company-toyota-001',
+    'BPNL00000000024R',
+    'toyota-motor-corporation',
     '2024-01-15T09:00:00.000Z',
     NOW(),
     NOW()
@@ -34,7 +39,9 @@ VALUES
     '1-2-1 Marunouchi, Chiyoda-ku, Tokyo 100-0005, Japan',
     'Satoru Komiya',
     'admin@tokiomarine.com',
-    'did:eu-dataspace:company-tokiomarine-001',
+    'did:web:localhost%3A8000:company:company-tokiomarine-001',
+    'BPNLTKM000000001',
+    'tokio-marine-nichido-fire-insu',
     '2024-02-01T09:00:00.000Z',
     NOW(),
     NOW()
@@ -51,6 +58,8 @@ ON CONFLICT ("id") DO UPDATE SET
   "adminName"     = EXCLUDED."adminName",
   "adminEmail"    = EXCLUDED."adminEmail",
   "did"           = EXCLUDED."did",
+  "bpn"           = EXCLUDED."bpn",
+  "tenantCode"    = EXCLUDED."tenantCode",
   "registeredAt"  = EXCLUDED."registeredAt",
   "updatedAt"     = NOW();
 
@@ -68,7 +77,7 @@ VALUES
     '2024-01-15T09:00:00.000Z',
     NULL,
     'active',
-    '{"companyName":"Toyota Motor Corporation","companyDid":"did:eu-dataspace:company-toyota-001","registrationNumber":"JP-0180-01-008234","vatId":"JP-TOYOTA-VAT-2024","eoriNumber":"JPEORI0012345","cin":"JP-0180-01-008234","gstNumber":"T1234567890123","country":"JP","city":"Toyota City","address":"1 Toyota-cho, Toyota City, Aichi 471-8571, Japan","adminName":"Akio Toyoda","adminEmail":"admin@toyota-global.com","incorporationDate":"1937-08-28T00:00:00.000Z"}',
+    '{"companyName":"Toyota Motor Corporation","companyDid":"did:web:localhost%3A8000:company:company-toyota-001","registrationNumber":"JP-0180-01-008234","vatId":"JP-TOYOTA-VAT-2024","eoriNumber":"JPEORI0012345","cin":"JP-0180-01-008234","gstNumber":"T1234567890123","country":"JP","city":"Toyota City","address":"1 Toyota-cho, Toyota City, Aichi 471-8571, Japan","adminName":"Akio Toyoda","adminEmail":"admin@toyota-global.com","incorporationDate":"1937-08-28T00:00:00.000Z"}',
     NOW(),
     NOW()
   ),
@@ -82,7 +91,7 @@ VALUES
     '2024-02-01T09:00:00.000Z',
     NULL,
     'active',
-    '{"companyName":"Tokio Marine & Nichido Fire Insurance Co., Ltd.","companyDid":"did:eu-dataspace:company-tokiomarine-001","registrationNumber":"JP-0100-01-078900","vatId":"JP-TOKIOMARINE-VAT-2024","country":"JP","city":"Tokyo","address":"1-2-1 Marunouchi, Chiyoda-ku, Tokyo 100-0005, Japan","adminName":"Satoru Komiya","adminEmail":"admin@tokiomarine.com","incorporationDate":"1879-08-01T00:00:00.000Z","insuranceLicense":"FSA/INS/2024/001","authorizedEUDistributor":true}',
+    '{"companyName":"Tokio Marine & Nichido Fire Insurance Co., Ltd.","companyDid":"did:web:localhost%3A8000:company:company-tokiomarine-001","registrationNumber":"JP-0100-01-078900","vatId":"JP-TOKIOMARINE-VAT-2024","country":"JP","city":"Tokyo","address":"1-2-1 Marunouchi, Chiyoda-ku, Tokyo 100-0005, Japan","adminName":"Satoru Komiya","adminEmail":"admin@tokiomarine.com","incorporationDate":"1879-08-01T00:00:00.000Z","insuranceLicense":"FSA/INS/2024/001","authorizedEUDistributor":true}',
     NOW(),
     NOW()
   ),
@@ -114,7 +123,7 @@ ON CONFLICT ("id") DO UPDATE SET
 
 -- ─── Cars ─────────────────────────────────────────────────────────────────────
 
-INSERT INTO "cars" ("id", "vin", "make", "model", "variant", "year", "color", "price", "status", "mileage", "fuelType", "transmission", "manufacturerCredentialId", "dpp", "createdAt", "updatedAt")
+INSERT INTO "cars" ("id", "vin", "make", "model", "variant", "year", "color", "price", "status", "mileage", "fuelType", "transmission", "manufacturerCredentialId", "manufacturerCompanyId", "dpp", "createdAt", "updatedAt")
 VALUES
   (
     'car-bz4x-ev-001',
@@ -130,6 +139,7 @@ VALUES
     'Electric',
     'Automatic',
     'cred-org-toyota-001',
+    'company-toyota-001',
     '{"stateOfHealth":{"batteryHealth":100,"batteryCapacity":"71.4 kWh","range":"559 km","lastInspectionDate":"2025-01-20T10:00:00.000Z"},"damageHistory":{"hasDamage":false,"incidents":[]},"serviceHistory":{"services":[{"date":"2025-01-20T10:00:00.000Z","type":"Pre-delivery Inspection","dealer":"Toyota Aichi Dealer","mileage":5}]},"ownershipChain":{"manufacturer":"Toyota Motor Corporation","manufacturingDate":"2025-01-10T00:00:00.000Z","manufacturingPlant":"Motomachi Plant, Toyota City, Aichi","currentOwner":null},"manufacturerCredential":{"credentialId":"cred-org-toyota-001","legalParticipantId":"org-cred-toyota-001","issuer":"Toyota Motor Corporation","type":"OrgVC","issuedAt":"2024-01-15T09:00:00.000Z","status":"active"}}',
     NOW(),
     NOW()
@@ -148,6 +158,7 @@ VALUES
     'Hybrid',
     'CVT',
     'cred-org-toyota-001',
+    'company-toyota-001',
     '{"stateOfHealth":{"engineHealth":98,"batteryHealth":99,"lastInspectionDate":"2024-11-15T10:00:00.000Z"},"damageHistory":{"hasDamage":false,"incidents":[]},"serviceHistory":{"services":[{"date":"2024-02-01T10:00:00.000Z","type":"Pre-delivery Inspection","dealer":"Toyota Tokyo Dealer","mileage":8},{"date":"2024-08-10T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Tokyo Dealer","mileage":5200}]},"ownershipChain":{"manufacturer":"Toyota Motor Corporation","manufacturingDate":"2024-01-20T00:00:00.000Z","manufacturingPlant":"Takaoka Plant, Toyota City, Aichi","owners":[{"name":"Yuki Tanaka","from":"2024-02-05T00:00:00.000Z","to":null}],"currentOwner":"Yuki Tanaka"},"manufacturerCredential":{"credentialId":"cred-org-toyota-001","legalParticipantId":"org-cred-toyota-001","issuer":"Toyota Motor Corporation","type":"OrgVC","issuedAt":"2024-01-15T09:00:00.000Z","status":"active"}}',
     NOW(),
     NOW()
@@ -166,6 +177,7 @@ VALUES
     'Hybrid',
     'CVT',
     'cred-org-toyota-001',
+    'company-toyota-001',
     '{"stateOfHealth":{"engineHealth":96,"batteryHealth":97,"lastInspectionDate":"2024-09-20T10:00:00.000Z"},"damageHistory":{"hasDamage":false,"incidents":[]},"serviceHistory":{"services":[{"date":"2023-03-10T10:00:00.000Z","type":"Pre-delivery Inspection","dealer":"Toyota Osaka Dealer","mileage":5},{"date":"2023-09-15T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Osaka Dealer","mileage":8500},{"date":"2024-03-20T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Osaka Dealer","mileage":15200}]},"ownershipChain":{"manufacturer":"Toyota Motor Corporation","manufacturingDate":"2023-02-15T00:00:00.000Z","manufacturingPlant":"Tsutsumi Plant, Toyota City, Aichi","owners":[{"name":"Kenji Yamamoto","from":"2023-03-15T00:00:00.000Z","to":null}],"currentOwner":"Kenji Yamamoto"},"manufacturerCredential":{"credentialId":"cred-org-toyota-001","legalParticipantId":"org-cred-toyota-001","issuer":"Toyota Motor Corporation","type":"OrgVC","issuedAt":"2024-01-15T09:00:00.000Z","status":"active"}}',
     NOW(),
     NOW()
@@ -184,6 +196,7 @@ VALUES
     'Diesel',
     'Automatic',
     'cred-org-toyota-001',
+    'company-toyota-001',
     '{"stateOfHealth":{"engineHealth":88,"lastInspectionDate":"2024-10-05T10:00:00.000Z"},"damageHistory":{"hasDamage":true,"incidents":[{"date":"2023-06-12T00:00:00.000Z","type":"Minor Collision","description":"Minor front bumper scratch from parking incident","repairCost":85000,"repairedAt":"Toyota Nagoya Service Center","severity":"low"}]},"serviceHistory":{"services":[{"date":"2022-04-01T10:00:00.000Z","type":"Pre-delivery Inspection","dealer":"Toyota Nagoya Dealer","mileage":10},{"date":"2022-10-15T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Nagoya Dealer","mileage":12000},{"date":"2023-04-20T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Nagoya Dealer","mileage":24000},{"date":"2023-07-01T10:00:00.000Z","type":"Damage Repair","dealer":"Toyota Nagoya Service Center","mileage":28000},{"date":"2024-01-10T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Yokohama Dealer","mileage":36000}]},"ownershipChain":{"manufacturer":"Toyota Motor Corporation","manufacturingDate":"2022-03-10T00:00:00.000Z","manufacturingPlant":"Tahara Plant, Aichi","owners":[{"name":"Haruto Sato","from":"2022-04-05T00:00:00.000Z","to":"2023-11-20T00:00:00.000Z"},{"name":"Takeshi Nakamura","from":"2023-11-20T00:00:00.000Z","to":null}],"currentOwner":"Takeshi Nakamura"},"manufacturerCredential":{"credentialId":"cred-org-toyota-001","legalParticipantId":"org-cred-toyota-001","issuer":"Toyota Motor Corporation","type":"OrgVC","issuedAt":"2024-01-15T09:00:00.000Z","status":"active"}}',
     NOW(),
     NOW()
@@ -202,6 +215,7 @@ VALUES
     'Petrol',
     'CVT',
     'cred-org-toyota-001',
+    'company-toyota-001',
     '{"stateOfHealth":{"engineHealth":78,"lastInspectionDate":"2024-08-12T10:00:00.000Z"},"damageHistory":{"hasDamage":true,"incidents":[{"date":"2021-09-05T00:00:00.000Z","type":"Rear-end Collision","description":"Moderate rear bumper and tail light damage from rear-end collision","repairCost":220000,"repairedAt":"Toyota Sapporo Service Center","severity":"medium"},{"date":"2023-02-18T00:00:00.000Z","type":"Hail Damage","description":"Body panel dents from hailstorm","repairCost":150000,"repairedAt":"Toyota Sendai Service Center","severity":"low"}]},"serviceHistory":{"services":[{"date":"2020-06-10T10:00:00.000Z","type":"Pre-delivery Inspection","dealer":"Toyota Sapporo Dealer","mileage":8},{"date":"2020-12-15T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Sapporo Dealer","mileage":12000},{"date":"2021-06-20T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Sapporo Dealer","mileage":24000},{"date":"2021-10-01T10:00:00.000Z","type":"Damage Repair","dealer":"Toyota Sapporo Service Center","mileage":30000},{"date":"2022-06-15T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Sendai Dealer","mileage":45000},{"date":"2023-03-10T10:00:00.000Z","type":"Damage Repair","dealer":"Toyota Sendai Service Center","mileage":56000},{"date":"2024-01-20T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Fukuoka Dealer","mileage":72000}]},"ownershipChain":{"manufacturer":"Toyota Motor Corporation","manufacturingDate":"2020-05-15T00:00:00.000Z","manufacturingPlant":"Iwate Plant, Iwate","owners":[{"name":"Sakura Watanabe","from":"2020-06-15T00:00:00.000Z","to":"2022-03-10T00:00:00.000Z"},{"name":"Hiroshi Suzuki","from":"2022-03-10T00:00:00.000Z","to":"2023-09-01T00:00:00.000Z"},{"name":"Mario Sanchez","from":"2023-09-01T00:00:00.000Z","to":null}],"currentOwner":"Mario Sanchez"},"manufacturerCredential":{"credentialId":"cred-org-toyota-001","legalParticipantId":"org-cred-toyota-001","issuer":"Toyota Motor Corporation","type":"OrgVC","issuedAt":"2024-01-15T09:00:00.000Z","status":"active"}}',
     NOW(),
     NOW()
@@ -220,6 +234,7 @@ VALUES
     'Hybrid',
     'CVT',
     'cred-org-toyota-001',
+    'company-toyota-001',
     '{"stateOfHealth":{"engineHealth":100,"batteryHealth":100,"lastInspectionDate":"2025-02-10T10:00:00.000Z"},"damageHistory":{"hasDamage":false,"incidents":[]},"serviceHistory":{"services":[{"date":"2025-02-10T10:00:00.000Z","type":"Pre-delivery Inspection","dealer":"Toyota Kobe Dealer","mileage":3}]},"ownershipChain":{"manufacturer":"Toyota Motor Corporation","manufacturingDate":"2025-01-28T00:00:00.000Z","manufacturingPlant":"Miyagi Ohira Plant, Miyagi","currentOwner":null},"manufacturerCredential":{"credentialId":"cred-org-toyota-001","legalParticipantId":"org-cred-toyota-001","issuer":"Toyota Motor Corporation","type":"OrgVC","issuedAt":"2024-01-15T09:00:00.000Z","status":"active"}}',
     NOW(),
     NOW()
@@ -238,6 +253,7 @@ VALUES
     'Hybrid',
     'CVT',
     'cred-org-toyota-001',
+    'company-toyota-001',
     '{"stateOfHealth":{"engineHealth":65,"batteryHealth":72,"lastInspectionDate":"2024-06-20T10:00:00.000Z"},"damageHistory":{"hasDamage":true,"incidents":[{"date":"2019-04-10T00:00:00.000Z","type":"Side Collision","description":"Left side door and fender damage from intersection collision","repairCost":380000,"repairedAt":"Toyota Hiroshima Service Center","severity":"medium"},{"date":"2020-12-22T00:00:00.000Z","type":"Front Collision","description":"Front bumper, hood and radiator damage from low-speed collision","repairCost":520000,"repairedAt":"Toyota Kyoto Service Center","severity":"high"},{"date":"2023-08-15T00:00:00.000Z","type":"Flood Damage","description":"Partial floor and electrical damage from typhoon flooding","repairCost":290000,"repairedAt":"Toyota Chiba Service Center","severity":"medium"}]},"serviceHistory":{"services":[{"date":"2018-05-01T10:00:00.000Z","type":"Pre-delivery Inspection","dealer":"Toyota Hiroshima Dealer","mileage":5},{"date":"2018-11-10T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Hiroshima Dealer","mileage":15000},{"date":"2019-05-15T10:00:00.000Z","type":"Damage Repair","dealer":"Toyota Hiroshima Service Center","mileage":28000},{"date":"2019-11-20T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Kyoto Dealer","mileage":42000},{"date":"2021-01-10T10:00:00.000Z","type":"Damage Repair","dealer":"Toyota Kyoto Service Center","mileage":65000},{"date":"2021-06-15T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Kyoto Dealer","mileage":78000},{"date":"2022-06-20T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Chiba Dealer","mileage":98000},{"date":"2023-09-01T10:00:00.000Z","type":"Damage Repair","dealer":"Toyota Chiba Service Center","mileage":115000},{"date":"2024-06-20T10:00:00.000Z","type":"Regular Service","dealer":"Toyota Chiba Dealer","mileage":130000}]},"ownershipChain":{"manufacturer":"Toyota Motor Corporation","manufacturingDate":"2018-04-10T00:00:00.000Z","manufacturingPlant":"Tsutsumi Plant, Toyota City, Aichi","owners":[{"name":"Ren Kobayashi","from":"2018-05-05T00:00:00.000Z","to":"2019-08-20T00:00:00.000Z"},{"name":"Aoi Inoue","from":"2019-08-20T00:00:00.000Z","to":"2021-04-10T00:00:00.000Z"},{"name":"Kaito Shimizu","from":"2021-04-10T00:00:00.000Z","to":"2023-01-15T00:00:00.000Z"},{"name":"Mei Hayashi","from":"2023-01-15T00:00:00.000Z","to":null}],"currentOwner":"Mei Hayashi"},"manufacturerCredential":{"credentialId":"cred-org-toyota-001","legalParticipantId":"org-cred-toyota-001","issuer":"Toyota Motor Corporation","type":"OrgVC","issuedAt":"2024-01-15T09:00:00.000Z","status":"active"}}',
     NOW(),
     NOW()
@@ -256,6 +272,7 @@ VALUES
     'Hybrid',
     'CVT',
     'cred-org-toyota-001',
+    'company-toyota-001',
     '{"stateOfHealth":{"engineHealth":100,"batteryHealth":100,"lastInspectionDate":"2024-12-01T10:00:00.000Z"},"damageHistory":{"hasDamage":false,"incidents":[]},"serviceHistory":{"services":[{"date":"2024-06-15T10:00:00.000Z","type":"Pre-delivery Inspection","dealer":"Toyota Yokohama Dealer","mileage":6}]},"ownershipChain":{"manufacturer":"Toyota Motor Corporation","manufacturingDate":"2024-05-28T00:00:00.000Z","manufacturingPlant":"Iwate Plant, Iwate","owners":[{"name":"Haruto Sato","from":"2024-06-20T00:00:00.000Z","to":null}],"currentOwner":"Haruto Sato"},"manufacturerCredential":{"credentialId":"cred-org-toyota-001","legalParticipantId":"org-cred-toyota-001","issuer":"Toyota Motor Corporation","type":"OrgVC","issuedAt":"2024-01-15T09:00:00.000Z","status":"active"}}',
     NOW(),
     NOW()
@@ -273,6 +290,7 @@ ON CONFLICT ("id") DO UPDATE SET
   "fuelType"                 = EXCLUDED."fuelType",
   "transmission"             = EXCLUDED."transmission",
   "manufacturerCredentialId" = EXCLUDED."manufacturerCredentialId",
+  "manufacturerCompanyId"    = EXCLUDED."manufacturerCompanyId",
   "dpp"                      = EXCLUDED."dpp",
   "updatedAt"                = NOW();
 
@@ -304,7 +322,7 @@ VALUES
     '{"streetAddress":"1 Toyota-cho","locality":"Toyota City","postalCode":"471-8571","countryCode":"JP","countrySubdivisionCode":"JP-23"}',
     'https://www.toyota-global.com',
     'admin@toyota-global.com',
-    'did:web:participant.gxdch.io:toyota-motor',
+    'did:web:localhost%3A8000:company:company-toyota-001',
     '2024-01-15T09:00:00.000Z',
     '2027-01-15T09:00:00.000Z',
     'draft',
@@ -322,7 +340,7 @@ VALUES
     '{"streetAddress":"1-2-1 Marunouchi, Chiyoda-ku","locality":"Tokyo","postalCode":"100-0005","countryCode":"JP","countrySubdivisionCode":"JP-13"}',
     'https://www.tokiomarine-nichido.co.jp',
     'admin@tokiomarine.com',
-    'did:web:participant.gxdch.io:tokio-marine',
+    'did:web:localhost%3A8000:company:company-tokiomarine-001',
     '2024-02-01T09:00:00.000Z',
     '2027-02-01T09:00:00.000Z',
     'draft',
@@ -342,3 +360,60 @@ ON CONFLICT ("id") DO UPDATE SET
   "validFrom"               = EXCLUDED."validFrom",
   "validUntil"              = EXCLUDED."validUntil",
   "updatedAt"               = NOW();
+
+-- ─── EDC Provisioning ─────────────────────────────────────────────────────────
+-- Required for the seeded companies' did:web documents to publish a DataService
+-- endpoint (did-resolver.ts only adds the entry when status='ready' and bpn is set).
+-- URLs match the deployed EDC ingresses on dataspace.smartsenselabs.com. The runtime
+-- seed.ts re-asserts these from env (TOYOTA_EDC_*, TOKIOMARINE_EDC_*) via upsert, so
+-- if the real ingresses change you only need to update env, not this migration.
+
+INSERT INTO "edc_provisioning" ("id", "companyId", "status", "protocolUrl", "managementUrl", "dataplaneUrl", "apiKey", "helmRelease", "argoAppName", "k8sNamespace", "dbName", "dbUser", "provisionedAt", "createdAt", "updatedAt")
+VALUES
+  (
+    'edc-prov-toyota-001',
+    'company-toyota-001',
+    'ready',
+    'https://toyota-protocol.dataspace.smartsenselabs.com/api/v1/dsp#BPNL00000000024R',
+    'https://toyota-controlplane.dataspace.smartsenselabs.com/management',
+    'https://toyota-dataplane.dataspace.smartsenselabs.com',
+    'toyota-motor-corporation',
+    'edc-toyota-motor-corporation',
+    'edc-toyota-motor-corporation',
+    'edc-toyota-motor-corporation',
+    'edc_toyota_motor_corporation',
+    'edc_toyota_motor_corporation',
+    '2024-01-15T09:00:00.000Z',
+    NOW(),
+    NOW()
+  ),
+  (
+    'edc-prov-tokiomarine-001',
+    'company-tokiomarine-001',
+    'ready',
+    'https://nissan-motors-protocol.dataspace.smartsenselabs.com/api/v1/dsp#BPNLTKM000000001',
+    'https://nissan-motors-controlplane.dataspace.smartsenselabs.com/management',
+    'https://nissan-motors-dataplane.dataspace.smartsenselabs.com',
+    'tokio-marine-nichido-fire-insu',
+    'edc-tokio-marine-nichido-fire-insu',
+    'edc-tokio-marine-nichido-fire-insu',
+    'edc-tokio-marine-nichido-fire-insu',
+    'edc_tokio_marine_nichido_fire_insu',
+    'edc_tokio_marine_nichido_fire_insu',
+    '2024-02-01T09:00:00.000Z',
+    NOW(),
+    NOW()
+  )
+ON CONFLICT ("companyId") DO UPDATE SET
+  "status"        = EXCLUDED."status",
+  "protocolUrl"   = EXCLUDED."protocolUrl",
+  "managementUrl" = EXCLUDED."managementUrl",
+  "dataplaneUrl"  = EXCLUDED."dataplaneUrl",
+  "apiKey"        = EXCLUDED."apiKey",
+  "helmRelease"   = EXCLUDED."helmRelease",
+  "argoAppName"   = EXCLUDED."argoAppName",
+  "k8sNamespace"  = EXCLUDED."k8sNamespace",
+  "dbName"        = EXCLUDED."dbName",
+  "dbUser"        = EXCLUDED."dbUser",
+  "provisionedAt" = EXCLUDED."provisionedAt",
+  "updatedAt"     = NOW();

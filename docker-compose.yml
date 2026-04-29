@@ -73,44 +73,98 @@ services:
   portal-dataspace:
     build:
       context: .
-      dockerfile: apps/portal-dataspace/Dockerfile
+      dockerfile: apps/Dockerfile
+      args:
+        APP_NAME: portal-dataspace
     ports:
       - "3001:80"
+    environment:
+      VITE_API_BASE_URL: "http://localhost:3000/api"
+      VITE_KEYCLOAK_URL: "http://localhost:8080"
+      VITE_KEYCLOAK_REALM: "eu-jap-hack"
+      VITE_PORTAL_DATASPACE_URL: "http://localhost:3001"
+      VITE_PORTAL_WALLET_URL: "http://localhost:3004"
+      VITE_PORTAL_COMPANY_URL: "http://localhost:3006"
 
   portal-tata-admin:
     build:
       context: .
-      dockerfile: apps/portal-tata-admin/Dockerfile
+      dockerfile: apps/Dockerfile
+      args:
+        APP_NAME: portal-tata-admin
     ports:
       - "3002:80"
+    environment:
+      VITE_API_BASE_URL: "http://localhost:3000/api"
+      VITE_KEYCLOAK_URL: "http://localhost:8080"
+      VITE_KEYCLOAK_REALM: "eu-jap-hack"
+      VITE_PORTAL_DATASPACE_URL: "http://localhost:3001"
+      VITE_PORTAL_WALLET_URL: "http://localhost:3004"
+      VITE_PORTAL_COMPANY_URL: "http://localhost:3006"
 
   portal-tata-public:
     build:
       context: .
-      dockerfile: apps/portal-tata-public/Dockerfile
+      dockerfile: apps/Dockerfile
+      args:
+        APP_NAME: portal-tata-public
     ports:
       - "3003:80"
+    environment:
+      VITE_API_BASE_URL: "http://localhost:3000/api"
+      VITE_KEYCLOAK_URL: "http://localhost:8080"
+      VITE_KEYCLOAK_REALM: "eu-jap-hack"
+      VITE_PORTAL_DATASPACE_URL: "http://localhost:3001"
+      VITE_PORTAL_WALLET_URL: "http://localhost:3004"
+      VITE_PORTAL_COMPANY_URL: "http://localhost:3006"
 
   portal-wallet:
     build:
       context: .
-      dockerfile: apps/portal-wallet/Dockerfile
+      dockerfile: apps/Dockerfile
+      args:
+        APP_NAME: portal-wallet
     ports:
       - "3004:80"
+    environment:
+      VITE_API_BASE_URL: "http://localhost:3000/api"
+      VITE_KEYCLOAK_URL: "http://localhost:8080"
+      VITE_KEYCLOAK_REALM: "eu-jap-hack"
+      VITE_PORTAL_DATASPACE_URL: "http://localhost:3001"
+      VITE_PORTAL_WALLET_URL: "http://localhost:3004"
+      VITE_PORTAL_COMPANY_URL: "http://localhost:3006"
 
   portal-insurance:
     build:
       context: .
-      dockerfile: apps/portal-insurance/Dockerfile
+      dockerfile: apps/Dockerfile
+      args:
+        APP_NAME: portal-insurance
     ports:
       - "3005:80"
+    environment:
+      VITE_API_BASE_URL: "http://localhost:3000/api"
+      VITE_KEYCLOAK_URL: "http://localhost:8080"
+      VITE_KEYCLOAK_REALM: "eu-jap-hack"
+      VITE_PORTAL_DATASPACE_URL: "http://localhost:3001"
+      VITE_PORTAL_WALLET_URL: "http://localhost:3004"
+      VITE_PORTAL_COMPANY_URL: "http://localhost:3006"
 
   portal-company:
     build:
       context: .
-      dockerfile: apps/portal-company/Dockerfile
+      dockerfile: apps/Dockerfile
+      args:
+        APP_NAME: portal-company
     ports:
       - "3006:80"
+    environment:
+      VITE_API_BASE_URL: "http://localhost:3000/api"
+      VITE_KEYCLOAK_URL: "http://localhost:8080"
+      VITE_KEYCLOAK_REALM: "eu-jap-hack"
+      VITE_PORTAL_DATASPACE_URL: "http://localhost:3001"
+      VITE_PORTAL_WALLET_URL: "http://localhost:3004"
+      VITE_PORTAL_COMPANY_URL: "http://localhost:3006"
 
   provisioning:
     build:

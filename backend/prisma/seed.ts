@@ -11,6 +11,27 @@ const EDC_ACCESS_POLICY_ID = process.env.EDC_ACCESS_POLICY_ID || '';
 const EDC_CONTRACT_POLICY_ID = process.env.EDC_CONTRACT_POLICY_ID || '';
 const ENABLE_EDC = process.env.ENABLE_EDC !== 'false';
 
+// did:web hosting domain — must match did-resolver.ts so resolution finds the company.
+const DID_DOMAIN = process.env.GAIAX_DID_DOMAIN || 'localhost%3A8000';
+const buildCompanyDidWeb = (companyId: string) =>
+  `did:web:${DID_DOMAIN}:company:${companyId}`;
+
+// EDC ingress URLs for the seeded tenants. These are the actual deployed FQDNs and
+// must come from env — no inference from APP_BASE_URL, no slug-based templating.
+// Runtime onboarding (provisioning service) still derives URLs from tenantCode for
+// brand-new tenants; seed data is fixed to the known existing deployments.
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`${name} is required for seeding`);
+  return v;
+}
+const TOYOTA_EDC_PROTOCOL_URL = requireEnv('TOYOTA_EDC_PROTOCOL_URL');
+const TOYOTA_EDC_MANAGEMENT_URL = requireEnv('TOYOTA_EDC_MANAGEMENT_URL');
+const TOYOTA_EDC_DATAPLANE_URL = requireEnv('TOYOTA_EDC_DATAPLANE_URL');
+const TOKIOMARINE_EDC_PROTOCOL_URL = requireEnv('TOKIOMARINE_EDC_PROTOCOL_URL');
+const TOKIOMARINE_EDC_MANAGEMENT_URL = requireEnv('TOKIOMARINE_EDC_MANAGEMENT_URL');
+const TOKIOMARINE_EDC_DATAPLANE_URL = requireEnv('TOKIOMARINE_EDC_DATAPLANE_URL');
+
 async function registerEdcAsset(vin: string): Promise<void> {
   if (!ENABLE_EDC || !EDC_BASE_URL) return;
 
@@ -77,6 +98,14 @@ async function main() {
   console.log('Seeding database...');
 
   // Seed Companies
+  // bpn / tenantCode are required by did-resolver.ts (DataService endpoint) and
+  // routes/companies.ts (URL derivation). Tokio Marine's tenantCode matches what
+  // toTenantCode("Tokio Marine & Nichido Fire Insurance Co., Ltd.") produces (30-char slice).
+  const TOYOTA_BPN = 'BPNL00000000024R';
+  const TOKIOMARINE_BPN = 'BPNLTKM000000001';
+  const TOYOTA_TENANT = 'toyota-motor-corporation';
+  const TOKIOMARINE_TENANT = 'tokio-marine-nichido-fire-insu';
+
   const companies = [
     {
       id: 'company-toyota-001',
@@ -90,7 +119,9 @@ async function main() {
       address: '1 Toyota-cho, Toyota City, Aichi 471-8571, Japan',
       adminName: 'Akio Toyoda',
       adminEmail: 'admin@toyota-global.com',
-      did: 'did:eu-dataspace:company-toyota-001',
+      did: buildCompanyDidWeb('company-toyota-001'),
+      bpn: TOYOTA_BPN,
+      tenantCode: TOYOTA_TENANT,
       registeredAt: new Date('2024-01-15T09:00:00.000Z'),
     },
     {
@@ -102,7 +133,9 @@ async function main() {
       address: '1-2-1 Marunouchi, Chiyoda-ku, Tokyo 100-0005, Japan',
       adminName: 'Satoru Komiya',
       adminEmail: 'admin@tokiomarine.com',
-      did: 'did:eu-dataspace:company-tokiomarine-001',
+      did: buildCompanyDidWeb('company-tokiomarine-001'),
+      bpn: TOKIOMARINE_BPN,
+      tenantCode: TOKIOMARINE_TENANT,
       registeredAt: new Date('2024-02-01T09:00:00.000Z'),
     },
   ];
@@ -129,7 +162,7 @@ async function main() {
       status: 'active',
       credentialSubject: {
         companyName: 'Toyota Motor Corporation',
-        companyDid: 'did:eu-dataspace:company-toyota-001',
+        companyDid: buildCompanyDidWeb('company-toyota-001'),
         registrationNumber: 'JP-0180-01-008234',
         vatId: 'JP-TOYOTA-VAT-2024',
         eoriNumber: 'JPEORI0012345',
@@ -154,7 +187,7 @@ async function main() {
       status: 'active',
       credentialSubject: {
         companyName: 'Tokio Marine & Nichido Fire Insurance Co., Ltd.',
-        companyDid: 'did:eu-dataspace:company-tokiomarine-001',
+        companyDid: buildCompanyDidWeb('company-tokiomarine-001'),
         registrationNumber: 'JP-0100-01-078900',
         vatId: 'JP-TOKIOMARINE-VAT-2024',
         country: 'JP',
@@ -444,15 +477,20 @@ async function main() {
     },
   ];
 
-  // Clear existing cars and related records, then re-seed
-  await prisma.insurancePolicy.deleteMany({});
-  await prisma.purchase.deleteMany({});
-  await prisma.car.deleteMany({});
+  // Idempotent car seeding — create on first boot, leave existing rows alone afterwards.
+  // We deliberately do NOT touch insurance_policies / purchases here: those are user-generated
+  // data and must survive backend restarts. To reset the demo, drop the DB manually and reboot.
+  // manufacturerCredentialId is read by vehicle-registry routes; tie every seeded Toyota car
+  // to the seeded Toyota OrgVC so those endpoints don't return null.
+  let carsCreated = 0;
   for (const car of cars) {
-    await prisma.car.create({ data: car });
+    const existing = await prisma.car.findUnique({ where: { id: car.id } });
+    if (existing) continue;
+    await prisma.car.create({ data: { ...car, manufacturerCredentialId: 'cred-org-toyota-001' } });
     await registerEdcAsset(car.vin);
+    carsCreated++;
   }
-  console.log(`Seeded ${cars.length} cars`);
+  console.log(`Cars: ${carsCreated} created, ${cars.length - carsCreated} preserved`);
 
   // Seed Wallet for mario-sanchez
   const wallet = await prisma.wallet.upsert({
@@ -479,7 +517,7 @@ async function main() {
       headquartersAddress: { streetAddress: '1 Toyota-cho', locality: 'Toyota City', postalCode: '471-8571', countryCode: 'JP', countrySubdivisionCode: 'JP-23' },
       website: 'https://www.toyota-global.com',
       contactEmail: 'admin@toyota-global.com',
-      did: 'did:web:participant.gxdch.io:toyota-motors',
+      did: buildCompanyDidWeb('company-toyota-001'),
       validFrom: new Date('2024-01-15T09:00:00.000Z'),
       validUntil: new Date('2027-01-15T09:00:00.000Z'),
       verificationStatus: 'draft',
@@ -495,7 +533,7 @@ async function main() {
       headquartersAddress: { streetAddress: '1-2-1 Marunouchi, Chiyoda-ku', locality: 'Tokyo', postalCode: '100-0005', countryCode: 'JP', countrySubdivisionCode: 'JP-13' },
       website: 'https://www.tokiomarine-nichido.co.jp',
       contactEmail: 'admin@tokiomarine.com',
-      did: 'did:web:participant.gxdch.io:tokio-marine',
+      did: buildCompanyDidWeb('company-tokiomarine-001'),
       validFrom: new Date('2024-02-01T09:00:00.000Z'),
       validUntil: new Date('2027-02-01T09:00:00.000Z'),
       verificationStatus: 'draft',
@@ -513,36 +551,47 @@ async function main() {
   }
   console.log(`Seeded ${orgCredentials.length} org credentials`);
 
-  // Seed EdcProvisioning for seeded companies so their DID documents include a DataService entry
+  // Seed EdcProvisioning so each seeded company's DID document publishes a DataService entry.
+  // URLs come from env (TOYOTA_EDC_*, TOKIOMARINE_EDC_*); BPN is appended to the protocol
+  // URL fragment as did-resolver.ts expects. tenantCode/helmRelease/k8s identifiers stay
+  // slug-derived since they're identity, not deployment shape.
+  const buildEdcProvisioning = (
+    companyId: string,
+    tenantCode: string,
+    bpn: string,
+    protocolUrl: string,
+    managementUrl: string,
+    dataplaneUrl: string,
+    provisionedAt: Date,
+  ) => {
+    const u = tenantCode.replace(/-/g, '_');
+    return {
+      companyId,
+      status: 'ready',
+      protocolUrl: `${protocolUrl}#${bpn}`,
+      managementUrl,
+      dataplaneUrl,
+      apiKey: tenantCode,
+      helmRelease: `edc-${tenantCode}`,
+      argoAppName: `edc-${tenantCode}`,
+      k8sNamespace: `edc-${tenantCode}`,
+      dbName: `edc_${u}`,
+      dbUser: `edc_${u}`,
+      provisionedAt,
+    };
+  };
+
   const edcProvisionings = [
-    {
-      companyId: 'company-toyota-001',
-      status: 'ready',
-      protocolUrl: 'https://toyota-protocol.tx.the-sense.io/api/v1/dsp#BPNL00000000024R',
-      managementUrl: 'https://toyota-motor-corporation-controlplane.tx.the-sense.io/management',
-      dataplaneUrl: 'https://toyota-motor-corporation-dataplane.tx.the-sense.io',
-      apiKey: 'toyota-motor-corporation',
-      helmRelease: 'edc-toyota-motor-corporation',
-      argoAppName: 'edc-toyota-motor-corporation',
-      k8sNamespace: 'edc-toyota-motor-corporation',
-      dbName: 'edc_toyota_motor_corporation',
-      dbUser: 'edc_toyota_motor_corporation',
-      provisionedAt: new Date('2024-01-15T09:00:00.000Z'),
-    },
-    {
-      companyId: 'company-tokiomarine-001',
-      status: 'ready',
-      protocolUrl: 'https://toyota-protocol.tx.the-sense.io/api/v1/dsp#BPNL00000000024R',
-      managementUrl: 'https://tokio-marine-europe-s-a-french-controlplane.tx.the-sense.io/management',
-      dataplaneUrl: 'https://tokio-marine-europe-s-a-french-dataplane.tx.the-sense.io',
-      apiKey: 'tokio-marine-europe-s-a-french',
-      helmRelease: 'edc-tokio-marine-europe-s-a-french',
-      argoAppName: 'edc-tokio-marine-europe-s-a-french',
-      k8sNamespace: 'edc-tokio-marine-europe-s-a-french',
-      dbName: 'edc_tokio_marine_europe_s_a_french',
-      dbUser: 'edc_tokio_marine_europe_s_a_french',
-      provisionedAt: new Date('2024-02-01T09:00:00.000Z'),
-    },
+    buildEdcProvisioning(
+      'company-toyota-001', TOYOTA_TENANT, TOYOTA_BPN,
+      TOYOTA_EDC_PROTOCOL_URL, TOYOTA_EDC_MANAGEMENT_URL, TOYOTA_EDC_DATAPLANE_URL,
+      new Date('2024-01-15T09:00:00.000Z'),
+    ),
+    buildEdcProvisioning(
+      'company-tokiomarine-001', TOKIOMARINE_TENANT, TOKIOMARINE_BPN,
+      TOKIOMARINE_EDC_PROTOCOL_URL, TOKIOMARINE_EDC_MANAGEMENT_URL, TOKIOMARINE_EDC_DATAPLANE_URL,
+      new Date('2024-02-01T09:00:00.000Z'),
+    ),
   ];
 
   for (const edc of edcProvisionings) {

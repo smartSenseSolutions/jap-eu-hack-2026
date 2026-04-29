@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@eu-jap-hack/auth": "*",
     "axios": "^1.6.7",
     "oidc-client-ts": "^3.5.0",
     "react": "^18.2.0",

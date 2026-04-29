@@ -349,14 +349,21 @@ Migration files live in `backend/prisma/migrations/`. Each migration is a timest
 
 ## Seeding
 
-`backend/prisma/seed.ts` creates demo data on every fresh database. Run automatically by `docker-entrypoint.sh`.
+Demo data is delivered through two paths that run on every backend start (see `backend/docker-entrypoint.sh`):
+
+1. **`backend/prisma/migrations/20260325000000_seed_data/migration.sql`** — raw SQL, applied once per DB by `prisma migrate deploy`. Provides static defaults so a fresh DB is never half-populated.
+2. **`backend/prisma/seed.ts`** — TypeScript, applied on every boot by `npx prisma db seed`. Authoritative for environment-dependent values (`Company.did` derived from `GAIAX_DID_DOMAIN`; `EdcProvisioning.*Url` derived from `EDC_BASE_DOMAIN`). Overwrites the migration's `localhost%3A8000` defaults within seconds of boot.
+
+For seed.ts to run in production the Prisma CLI and `ts-node` must survive `npm prune --omit=dev`; they live in `dependencies`, not `devDependencies` — see [ADR 2026-04-28-seed-idempotency-and-runtime-deps](adr/2026-04-28-seed-idempotency-and-runtime-deps.md).
 
 **What the seed creates:**
 
-1. **TATA Motors company** — with address and VAT details
-2. **Demo vehicles** — 3–5 cars with VINs, specs, and partial DPP data
-3. **Mario Sanchez's wallet** — pre-loaded with a SelfVC
-4. **Sample org credential** — in `pending` status for demo purposes
+1. **Companies** — Toyota Motor Corporation and Tokio Marine & Nichido Fire Insurance, each with `bpn`, `tenantCode`, and a `did:web` identifier.
+2. **OrgCredentials** — one per company, draft Gaia-X verification status.
+3. **Credentials** — Toyota and Tokio Marine OrgVCs plus Mario Sanchez's SelfVC.
+4. **Mario Sanchez's wallet** — pre-loaded with the SelfVC.
+5. **Eight Toyota cars** — bZ4X, RAV4 Hybrid, Camry Hybrid, Land Cruiser, Corolla Cross, Yaris Cross, Prius, C-HR Hybrid; mix of conditions chosen so the underwriting scoring engine produces a spread of premium tiers.
+6. **EdcProvisioning rows** — `status='ready'` for both companies so their `did:web` documents publish a `DataService` endpoint and cross-tenant EDC discovery works.
 
 To re-run manually:
 
@@ -365,4 +372,15 @@ cd backend
 npx prisma db seed
 ```
 
-> **Note:** The seed is idempotent — it uses `upsert` operations. Running it twice won't create duplicate records.
+**Idempotency contract:**
+
+- Cars are created only if missing (guarded by `findUnique`). Existing cars are preserved — a car marked `status='sold'` after a user purchase will not revert.
+- `insurance_policies` and `purchases` are **never** touched by the seed; user-generated data is safe across restarts.
+- Companies, credentials, OrgCredentials, EdcProvisioning are upserted with `update` so their env-derived fields refresh when `APP_BASE_URL` / `GAIAX_DID_DOMAIN` change.
+
+To reset demo state (e.g. mark all cars `available` again), drop the database and reboot:
+
+```bash
+docker compose down -v   # destroys the postgres volume
+docker compose up -d     # migrate + seed re-run on the empty DB
+```

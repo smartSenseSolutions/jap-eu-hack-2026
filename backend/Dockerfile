@@ -33,6 +33,7 @@ COPY --from=base /app/node_modules ./node_modules
 # Copy compiled output and Prisma artifacts
 COPY --from=base /app/backend/dist ./backend/dist
 COPY --from=base /app/backend/prisma ./backend/prisma
+COPY --from=base /app/backend/tsconfig.json ./backend/tsconfig.json
 COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
 
 # Entrypoint script: run migrations + seed, then start
