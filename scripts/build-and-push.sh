@@ -7,6 +7,7 @@ set -euo pipefail
 # Usage:
 #   ./scripts/build-and-push.sh              # Build and push all images
 #   ./scripts/build-and-push.sh backend      # Build and push only backend
+#   ./scripts/build-and-push.sh keycloak     # Build and push only keycloak (theme + realm baked in)
 #   ./scripts/build-and-push.sh portal-wallet # Build and push only portal-wallet
 #
 # Environment variables (set these or export before running):
@@ -24,6 +25,7 @@ IMAGE_TAG="${IMAGE_TAG:-1.0.0}"
 # All application names
 ALL_APPS=(
   "backend"
+  "keycloak"
   "portal-dataspace"
   "portal-tata-admin"
   "portal-tata-public"
@@ -73,6 +75,12 @@ build_image() {
       -t "${full_image}" \
       -f backend/Dockerfile \
       .
+  elif [ "$app_name" = "keycloak" ]; then
+    # Keycloak's build context is keycloak/ — bakes in custom theme + realm export.
+    docker build \
+      -t "${full_image}" \
+      -f keycloak/Dockerfile \
+      keycloak
   else
     docker build \
       --build-arg APP_NAME="${app_name}" \

@@ -1,0 +1,35 @@
+# Build artifacts and deps
+node_modules
+dist
+.vite
+coverage
+.nyc_output
+
+# Secrets — provisioning holds Vault and git-write creds; never bake them in.
+.env
+.env.local
+.env.*.local
+.env.production
+.keys
+*.pem
+*.key
+*.p12
+*.pfx
+
+# VCS and editor junk
+.git
+.gitignore
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# Local-only notes
+CLAUDE*.md
+.claude
+
+# Logs
+*.log
+npm-debug.log*
+.cache
+*.tmp

@@ -1,10 +1,48 @@
-node_modules
-*/node_modules
-*/*/node_modules
-.git
-*.md
-.env
-.env.*
-dist
-*/dist
-*/*/dist
+# Build artifacts and deps — recreated inside the image
+**/node_modules
+**/dist
+**/.vite
+**/coverage
+**/.nyc_output
+
+# Secrets — never bake into images. .env.example is intentionally kept (placeholders only).
+**/.env
+**/.env.local
+**/.env.*.local
+**/.env.production
+**/.env.production.local
+**/.keys
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+
+# VCS and CI metadata
+**/.git
+**/.gitignore
+**/.gitattributes
+**/.github
+
+# Editor / OS junk
+**/.vscode
+**/.idea
+**/*.swp
+**/*.swo
+**/.DS_Store
+**/Thumbs.db
+
+# Local-only tooling and notes
+**/CLAUDE*.md
+**/.claude
+**/graphify-out
+docs/adr
+
+# Compose files don't belong in images
+docker-compose*.yml
+
+# Logs and tmp
+**/*.log
+**/npm-debug.log*
+**/yarn-error.log*
+**/.cache
+**/*.tmp

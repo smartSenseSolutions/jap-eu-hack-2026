@@ -1,0 +1,13 @@
+# Build context for the keycloak image only needs Dockerfile, themes/, and realm-export.json.
+# Exclude scripts and editor junk.
+create-realm.sh
+.git
+.gitignore
+.vscode
+.idea
+*.swp
+.DS_Store
+CLAUDE*.md
+.claude
+*.log
+*.tmp
